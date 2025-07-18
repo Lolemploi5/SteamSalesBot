@@ -419,6 +419,26 @@ def main():
     http_thread = threading.Thread(target=start_http_server, daemon=True)
     http_thread.start()
     
+    # Créer l'application Telegram
+    try:
+        from telegram.ext import Application, CommandHandler, CallbackQueryHandler
+        
+        application = Application.builder().token(TELEGRAM_TOKEN).build()
+        
+        # Ajouter les handlers pour les commandes
+        application.add_handler(CommandHandler("start", start_command))
+        application.add_handler(CommandHandler("check", check_command))
+        application.add_handler(CallbackQueryHandler(button_callback))
+        
+        logger.info("✅ Commandes Telegram activées : /start, /check")
+        telegram_enabled = True
+        
+    except Exception as e:
+        logger.warning(f"⚠️ Impossible d'activer les commandes Telegram: {e}")
+        logger.info("🔔 Mode notifications automatiques uniquement")
+        application = None
+        telegram_enabled = False
+    
     # Configurer le scheduler pour les vérifications automatiques
     scheduler = BackgroundScheduler(timezone=TIMEZONE)
     
@@ -449,6 +469,12 @@ def main():
         def signal_handler(signum, frame):
             logger.info("Signal d'arrêt reçu, fermeture propre...")
             scheduler.shutdown()
+            if telegram_enabled and application:
+                try:
+                    # Arrêt propre de l'application Telegram
+                    logger.info("Arrêt de l'application Telegram...")
+                except Exception:
+                    pass
             exit(0)
         
         signal.signal(signal.SIGTERM, signal_handler)
@@ -457,16 +483,35 @@ def main():
         logger.info("✅ Bot Steam Sales démarré avec succès !")
         logger.info("🔔 Les notifications automatiques sont actives")
         logger.info("📅 Prochaines vérifications: 9h et 19h (Europe/Paris)")
-        logger.info("📱 Pour recevoir les notifications, ajoutez votre chat_id dans sent_games.json")
+        
+        if telegram_enabled:
+            logger.info("🤖 Commandes Telegram disponibles : /start, /check")
+        else:
+            logger.info("📱 Pour recevoir les notifications, ajoutez votre chat_id dans sent_games.json")
         
         # Faire une vérification initiale pour tester
         logger.info("🧪 Test initial de l'API Steam...")
         scheduled_check_sync()
         
-        # Boucle principale pour maintenir le service actif
-        logger.info("🔄 Service en fonctionnement - Maintien de la connexion...")
-        while True:
-            time.sleep(60)  # Vérifier toutes les minutes si le service doit s'arrêter
+        # Démarrer le bot Telegram si possible
+        if telegram_enabled and application:
+            try:
+                logger.info("🚀 Démarrage du bot Telegram avec polling...")
+                application.run_polling(
+                    allowed_updates=Update.ALL_TYPES,
+                    drop_pending_updates=True
+                )
+            except Exception as e:
+                logger.error(f"❌ Erreur avec le polling Telegram: {e}")
+                logger.info("🔄 Basculement en mode service simple...")
+                # Boucle de maintien si le polling échoue
+                while True:
+                    time.sleep(60)
+        else:
+            # Boucle principale pour maintenir le service actif
+            logger.info("🔄 Service en fonctionnement - Maintien de la connexion...")
+            while True:
+                time.sleep(60)
             
     except KeyboardInterrupt:
         logger.info("Arrêt demandé par l'utilisateur")
