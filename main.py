@@ -72,32 +72,369 @@ class HealthCheckHandler(BaseHTTPRequestHandler):
                 
                 html = f"""
                 <!DOCTYPE html>
-                <html>
+                <html lang="fr">
                 <head>
-                    <title>Inscription réussie - Steam Sales Bot</title>
-                    <meta charset="utf-8">
+                    <meta charset="UTF-8">
+                    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+                    <title>Inscription Réussie - Steam Sales Bot</title>
+                    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+                    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
                     <style>
-                        body {{ font-family: Arial, sans-serif; max-width: 600px; margin: 50px auto; padding: 20px; text-align: center; }}
-                        .success {{ background: #d4edda; border: 1px solid #c3e6cb; padding: 20px; border-radius: 10px; margin: 20px 0; }}
-                        .info {{ background: #d1ecf1; border: 1px solid #bee5eb; padding: 15px; border-radius: 5px; margin: 20px 0; }}
+                        * {{
+                            margin: 0;
+                            padding: 0;
+                            box-sizing: border-box;
+                        }}
+                        
+                        :root {{
+                            --success: #00d4aa;
+                            --primary: #1a73e8;
+                            --secondary: #ff6b35;
+                            --dark: #0f1419;
+                            --dark-card: #1a1f2e;
+                            --text-primary: #ffffff;
+                            --text-secondary: #94a3b8;
+                            --gradient-success: linear-gradient(135deg, #00d4aa 0%, #2ed573 100%);
+                            --glass: rgba(255, 255, 255, 0.1);
+                            --glass-border: rgba(255, 255, 255, 0.2);
+                        }}
+                        
+                        body {{
+                            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+                            background: var(--dark);
+                            color: var(--text-primary);
+                            min-height: 100vh;
+                            display: flex;
+                            align-items: center;
+                            justify-content: center;
+                            position: relative;
+                            overflow: hidden;
+                        }}
+                        
+                        body::before {{
+                            content: '';
+                            position: fixed;
+                            top: 0;
+                            left: 0;
+                            width: 100%;
+                            height: 100%;
+                            background: 
+                                radial-gradient(circle at 30% 40%, rgba(0, 212, 170, 0.4) 0%, transparent 50%),
+                                radial-gradient(circle at 70% 60%, rgba(46, 213, 115, 0.4) 0%, transparent 50%),
+                                radial-gradient(circle at 50% 80%, rgba(26, 115, 232, 0.3) 0%, transparent 50%);
+                            animation: celebration 15s ease infinite;
+                            z-index: -1;
+                        }}
+                        
+                        @keyframes celebration {{
+                            0%, 100% {{ transform: scale(1) rotate(0deg); }}
+                            50% {{ transform: scale(1.2) rotate(180deg); }}
+                        }}
+                        
+                        .confetti {{
+                            position: fixed;
+                            top: 0;
+                            left: 0;
+                            width: 100%;
+                            height: 100%;
+                            overflow: hidden;
+                            z-index: -1;
+                        }}
+                        
+                        .confetti-piece {{
+                            position: absolute;
+                            width: 8px;
+                            height: 8px;
+                            background: var(--success);
+                            animation: confettiFall 3s infinite linear;
+                        }}
+                        
+                        @keyframes confettiFall {{
+                            0% {{ transform: translateY(-100vh) rotate(0deg); opacity: 1; }}
+                            100% {{ transform: translateY(100vh) rotate(720deg); opacity: 0; }}
+                        }}
+                        
+                        .container {{
+                            max-width: 600px;
+                            margin: 0 auto;
+                            padding: 2rem;
+                            position: relative;
+                            z-index: 1;
+                        }}
+                        
+                        .success-card {{
+                            background: var(--glass);
+                            backdrop-filter: blur(20px);
+                            border: 1px solid var(--glass-border);
+                            border-radius: 25px;
+                            padding: 3rem;
+                            text-align: center;
+                            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3);
+                            animation: successSlideUp 1s ease-out;
+                        }}
+                        
+                        @keyframes successSlideUp {{
+                            0% {{ transform: translateY(50px) scale(0.9); opacity: 0; }}
+                            100% {{ transform: translateY(0) scale(1); opacity: 1; }}
+                        }}
+                        
+                        .success-icon {{
+                            width: 100px;
+                            height: 100px;
+                            margin: 0 auto 2rem;
+                            background: var(--gradient-success);
+                            border-radius: 50%;
+                            display: flex;
+                            align-items: center;
+                            justify-content: center;
+                            font-size: 3rem;
+                            color: white;
+                            animation: bounce 2s infinite;
+                            box-shadow: 0 10px 30px rgba(0, 212, 170, 0.3);
+                        }}
+                        
+                        @keyframes bounce {{
+                            0%, 20%, 50%, 80%, 100% {{ transform: translateY(0); }}
+                            40% {{ transform: translateY(-10px); }}
+                            60% {{ transform: translateY(-5px); }}
+                        }}
+                        
+                        .success-title {{
+                            font-size: 2.5rem;
+                            font-weight: 700;
+                            margin-bottom: 1rem;
+                            background: var(--gradient-success);
+                            -webkit-background-clip: text;
+                            -webkit-text-fill-color: transparent;
+                            background-clip: text;
+                        }}
+                        
+                        .success-subtitle {{
+                            font-size: 1.2rem;
+                            color: var(--text-secondary);
+                            margin-bottom: 2rem;
+                        }}
+                        
+                        .stats-grid {{
+                            display: grid;
+                            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+                            gap: 1.5rem;
+                            margin: 2rem 0;
+                        }}
+                        
+                        .stat-item {{
+                            background: var(--dark-card);
+                            border-radius: 15px;
+                            padding: 1.5rem;
+                            border: 1px solid rgba(0, 212, 170, 0.2);
+                            transition: all 0.3s ease;
+                        }}
+                        
+                        .stat-item:hover {{
+                            border-color: var(--success);
+                            transform: translateY(-3px);
+                            box-shadow: 0 10px 25px rgba(0, 212, 170, 0.2);
+                        }}
+                        
+                        .stat-icon {{
+                            font-size: 1.5rem;
+                            color: var(--success);
+                            margin-bottom: 0.5rem;
+                        }}
+                        
+                        .stat-value {{
+                            font-size: 1.3rem;
+                            font-weight: 600;
+                            color: var(--text-primary);
+                            margin-bottom: 0.25rem;
+                        }}
+                        
+                        .stat-label {{
+                            color: var(--text-secondary);
+                            font-size: 0.875rem;
+                        }}
+                        
+                        .info-card {{
+                            background: rgba(0, 212, 170, 0.1);
+                            border: 1px solid rgba(0, 212, 170, 0.3);
+                            border-radius: 20px;
+                            padding: 2rem;
+                            margin: 2rem 0;
+                            backdrop-filter: blur(10px);
+                        }}
+                        
+                        .info-title {{
+                            display: flex;
+                            align-items: center;
+                            justify-content: center;
+                            gap: 0.5rem;
+                            font-size: 1.5rem;
+                            font-weight: 600;
+                            margin-bottom: 1rem;
+                            color: var(--success);
+                        }}
+                        
+                        .info-text {{
+                            color: var(--text-secondary);
+                            line-height: 1.6;
+                            margin-bottom: 1rem;
+                        }}
+                        
+                        .schedule {{
+                            background: var(--dark-card);
+                            border-radius: 10px;
+                            padding: 1rem;
+                            border: 1px solid rgba(255, 255, 255, 0.1);
+                        }}
+                        
+                        .schedule-title {{
+                            color: var(--text-primary);
+                            font-weight: 600;
+                            margin-bottom: 0.5rem;
+                        }}
+                        
+                        .schedule-time {{
+                            color: var(--success);
+                            font-weight: 700;
+                            font-size: 1.1rem;
+                        }}
+                        
+                        .home-button {{
+                            display: inline-flex;
+                            align-items: center;
+                            gap: 0.5rem;
+                            background: var(--primary);
+                            color: white;
+                            padding: 15px 30px;
+                            border-radius: 50px;
+                            text-decoration: none;
+                            font-weight: 600;
+                            margin-top: 2rem;
+                            transition: all 0.3s ease;
+                            box-shadow: 0 4px 15px rgba(26, 115, 232, 0.3);
+                        }}
+                        
+                        .home-button:hover {{
+                            background: #1557b0;
+                            transform: translateY(-2px);
+                            box-shadow: 0 8px 25px rgba(26, 115, 232, 0.4);
+                            color: white;
+                            text-decoration: none;
+                        }}
+                        
+                        @media (max-width: 768px) {{
+                            .container {{
+                                padding: 1rem;
+                            }}
+                            
+                            .success-card {{
+                                padding: 2rem 1rem;
+                            }}
+                            
+                            .success-title {{
+                                font-size: 2rem;
+                            }}
+                            
+                            .stats-grid {{
+                                grid-template-columns: 1fr;
+                            }}
+                        }}
+                        
+                        .pulse {{
+                            animation: pulse 2s infinite;
+                        }}
+                        
+                        @keyframes pulse {{
+                            0% {{ box-shadow: 0 0 0 0 rgba(0, 212, 170, 0.4); }}
+                            70% {{ box-shadow: 0 0 0 20px rgba(0, 212, 170, 0); }}
+                            100% {{ box-shadow: 0 0 0 0 rgba(0, 212, 170, 0); }}
+                        }}
                     </style>
                 </head>
                 <body>
-                    <h1>🎉 Inscription réussie !</h1>
+                    <div class="confetti"></div>
                     
-                    <div class="success">
-                        <h3>✅ Vous êtes maintenant inscrit !</h3>
-                        <p><strong>Chat ID:</strong> {chat_id}</p>
-                        <p><strong>Utilisateurs inscrits:</strong> {len(steam_bot.chat_ids) if 'steam_bot' in globals() else 0}</p>
+                    <div class="container">
+                        <div class="success-card">
+                            <div class="success-icon pulse">
+                                <i class="fas fa-check"></i>
+                            </div>
+                            
+                            <h1 class="success-title">Inscription Réussie !</h1>
+                            <p class="success-subtitle">Bienvenue dans la communauté Steam Sales Bot</p>
+                            
+                            <div class="stats-grid">
+                                <div class="stat-item">
+                                    <div class="stat-icon"><i class="fas fa-id-card"></i></div>
+                                    <div class="stat-value">{chat_id}</div>
+                                    <div class="stat-label">Votre Chat ID</div>
+                                </div>
+                                
+                                <div class="stat-item">
+                                    <div class="stat-icon"><i class="fas fa-users"></i></div>
+                                    <div class="stat-value">{len(steam_bot.chat_ids) if 'steam_bot' in globals() else 0}</div>
+                                    <div class="stat-label">Utilisateurs inscrits</div>
+                                </div>
+                            </div>
+                            
+                            <div class="info-card">
+                                <h3 class="info-title">
+                                    <i class="fas fa-bell"></i>
+                                    Notifications Automatiques Activées
+                                </h3>
+                                <p class="info-text">
+                                    Vous recevrez maintenant des notifications Telegram instantanées 
+                                    dès qu'un jeu Steam payant devient temporairement gratuit !
+                                </p>
+                                
+                                <div class="schedule">
+                                    <div class="schedule-title">Horaires de vérification :</div>
+                                    <div class="schedule-time">🕘 9h00 & 🕕 19h00 (Europe/Paris)</div>
+                                </div>
+                            </div>
+                            
+                            <a href="/" class="home-button">
+                                <i class="fas fa-home"></i>
+                                Retour à l'accueil
+                            </a>
+                        </div>
                     </div>
                     
-                    <div class="info">
-                        <h3>🔔 Notifications automatiques</h3>
-                        <p>Vous recevrez maintenant des notifications Telegram quand des jeux Steam payants deviennent gratuits !</p>
-                        <p><strong>Horaires:</strong> 9h et 19h (Europe/Paris)</p>
-                    </div>
-                    
-                    <p><a href="/">← Retour à l'accueil</a></p>
+                    <script>
+                        // Create confetti animation
+                        function createConfetti() {{
+                            const confettiContainer = document.querySelector('.confetti');
+                            const colors = ['#00d4aa', '#2ed573', '#1a73e8', '#ff6b35'];
+                            
+                            for (let i = 0; i < 100; i++) {{
+                                const confetti = document.createElement('div');
+                                confetti.className = 'confetti-piece';
+                                confetti.style.left = Math.random() * 100 + '%';
+                                confetti.style.backgroundColor = colors[Math.floor(Math.random() * colors.length)];
+                                confetti.style.animationDelay = Math.random() * 3 + 's';
+                                confetti.style.animationDuration = (Math.random() * 2 + 2) + 's';
+                                confettiContainer.appendChild(confetti);
+                            }}
+                        }}
+                        
+                        // Initialize on page load
+                        document.addEventListener('DOMContentLoaded', function() {{
+                            createConfetti();
+                            
+                            // Auto-redirect after 10 seconds
+                            setTimeout(() => {{
+                                const button = document.querySelector('.home-button');
+                                if (button) {{
+                                    button.style.background = 'var(--secondary)';
+                                    button.innerHTML = '<i class="fas fa-clock"></i> Redirection automatique...';
+                                    
+                                    setTimeout(() => {{
+                                        window.location.href = '/';
+                                    }}, 2000);
+                                }}
+                            }}, 8000);
+                        }});
+                    </script>
                 </body>
                 </html>
                 """
@@ -118,79 +455,657 @@ class HealthCheckHandler(BaseHTTPRequestHandler):
             
             html = f"""
             <!DOCTYPE html>
-            <html>
+            <html lang="fr">
             <head>
-                <title>Steam Sales Bot</title>
-                <meta charset="utf-8">
+                <meta charset="UTF-8">
+                <meta name="viewport" content="width=device-width, initial-scale=1.0">
+                <title>Steam Sales Bot - Notifications Gratuites</title>
+                <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+                <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
                 <style>
-                    body {{ font-family: Arial, sans-serif; max-width: 800px; margin: 0 auto; padding: 20px; }}
-                    .status {{ background: #d4edda; border: 1px solid #c3e6cb; padding: 15px; border-radius: 5px; margin: 20px 0; }}
-                    .info {{ background: #d1ecf1; border: 1px solid #bee5eb; padding: 15px; border-radius: 5px; margin: 20px 0; }}
-                    .steps {{ background: #fff3cd; border: 1px solid #ffeaa7; padding: 15px; border-radius: 5px; margin: 20px 0; }}
-                    .subscribe {{ background: #d1f2eb; border: 1px solid #a3e4d7; padding: 20px; border-radius: 5px; margin: 20px 0; text-align: center; }}
-                    code {{ background: #f8f9fa; padding: 2px 5px; border-radius: 3px; }}
-                    input {{ padding: 10px; font-size: 16px; border: 1px solid #ccc; border-radius: 3px; width: 200px; }}
-                    button {{ padding: 10px 20px; font-size: 16px; background: #007bff; color: white; border: none; border-radius: 3px; cursor: pointer; }}
-                    button:hover {{ background: #0056b3; }}
+                    * {{
+                        margin: 0;
+                        padding: 0;
+                        box-sizing: border-box;
+                    }}
+                    
+                    :root {{
+                        --primary: #1a73e8;
+                        --secondary: #ff6b35;
+                        --success: #00d4aa;
+                        --dark: #0f1419;
+                        --dark-card: #1a1f2e;
+                        --text-primary: #ffffff;
+                        --text-secondary: #94a3b8;
+                        --gradient-1: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+                        --gradient-3: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+                        --glass: rgba(255, 255, 255, 0.1);
+                        --glass-border: rgba(255, 255, 255, 0.2);
+                    }}
+                    
+                    body {{
+                        font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+                        background: var(--dark);
+                        color: var(--text-primary);
+                        min-height: 100vh;
+                        overflow-x: hidden;
+                        position: relative;
+                    }}
+                    
+                    body::before {{
+                        content: '';
+                        position: fixed;
+                        top: 0;
+                        left: 0;
+                        width: 100%;
+                        height: 100%;
+                        background: 
+                            radial-gradient(circle at 20% 50%, rgba(103, 126, 234, 0.3) 0%, transparent 50%),
+                            radial-gradient(circle at 80% 20%, rgba(255, 107, 53, 0.3) 0%, transparent 50%),
+                            radial-gradient(circle at 40% 80%, rgba(0, 212, 170, 0.3) 0%, transparent 50%);
+                        animation: gradientShift 20s ease infinite;
+                        z-index: -1;
+                    }}
+                    
+                    @keyframes gradientShift {{
+                        0%, 100% {{ transform: scale(1) rotate(0deg); }}
+                        50% {{ transform: scale(1.1) rotate(180deg); }}
+                    }}
+                    
+                    .particles {{
+                        position: fixed;
+                        top: 0;
+                        left: 0;
+                        width: 100%;
+                        height: 100%;
+                        overflow: hidden;
+                        z-index: -1;
+                    }}
+                    
+                    .particle {{
+                        position: absolute;
+                        background: rgba(255, 255, 255, 0.1);
+                        border-radius: 50%;
+                        animation: float 20s infinite linear;
+                    }}
+                    
+                    @keyframes float {{
+                        0% {{ transform: translateY(100vh) rotate(0deg); opacity: 0; }}
+                        10% {{ opacity: 1; }}
+                        90% {{ opacity: 1; }}
+                        100% {{ transform: translateY(-100px) rotate(360deg); opacity: 0; }}
+                    }}
+                    
+                    .container {{
+                        max-width: 1200px;
+                        margin: 0 auto;
+                        padding: 2rem;
+                        position: relative;
+                        z-index: 1;
+                    }}
+                    
+                    .header {{
+                        text-align: center;
+                        margin-bottom: 3rem;
+                        animation: slideDown 1s ease-out;
+                    }}
+                    
+                    @keyframes slideDown {{
+                        0% {{ transform: translateY(-50px); opacity: 0; }}
+                        100% {{ transform: translateY(0); opacity: 1; }}
+                    }}
+                    
+                    .header h1 {{
+                        font-size: clamp(2.5rem, 5vw, 4rem);
+                        font-weight: 700;
+                        background: var(--gradient-3);
+                        -webkit-background-clip: text;
+                        -webkit-text-fill-color: transparent;
+                        background-clip: text;
+                        margin-bottom: 1rem;
+                    }}
+                    
+                    .header .subtitle {{
+                        font-size: 1.2rem;
+                        color: var(--text-secondary);
+                        font-weight: 300;
+                    }}
+                    
+                    .glass-card {{
+                        background: var(--glass);
+                        backdrop-filter: blur(20px);
+                        border: 1px solid var(--glass-border);
+                        border-radius: 20px;
+                        padding: 2rem;
+                        margin-bottom: 2rem;
+                        box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+                        transition: all 0.3s ease;
+                        animation: slideUp 0.8s ease-out;
+                    }}
+                    
+                    @keyframes slideUp {{
+                        0% {{ transform: translateY(50px); opacity: 0; }}
+                        100% {{ transform: translateY(0); opacity: 1; }}
+                    }}
+                    
+                    .glass-card:hover {{
+                        transform: translateY(-5px);
+                        box-shadow: 0 20px 40px rgba(0, 0, 0, 0.4);
+                        border-color: rgba(255, 255, 255, 0.3);
+                    }}
+                    
+                    .status-grid {{
+                        display: grid;
+                        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+                        gap: 1rem;
+                        margin-bottom: 2rem;
+                    }}
+                    
+                    .status-item {{
+                        background: var(--dark-card);
+                        border-radius: 15px;
+                        padding: 1.5rem;
+                        text-align: center;
+                        border: 1px solid rgba(255, 255, 255, 0.1);
+                        transition: all 0.3s ease;
+                    }}
+                    
+                    .status-item:hover {{
+                        border-color: var(--primary);
+                        transform: translateY(-3px);
+                    }}
+                    
+                    .status-icon {{
+                        font-size: 2rem;
+                        margin-bottom: 0.5rem;
+                        color: var(--success);
+                    }}
+                    
+                    .status-value {{
+                        font-size: 1.5rem;
+                        font-weight: 600;
+                        color: var(--text-primary);
+                        margin-bottom: 0.25rem;
+                    }}
+                    
+                    .status-label {{
+                        color: var(--text-secondary);
+                        font-size: 0.875rem;
+                    }}
+                    
+                    .subscription-card {{
+                        background: var(--gradient-1);
+                        border-radius: 25px;
+                        padding: 3rem;
+                        text-align: center;
+                        margin: 2rem 0;
+                        position: relative;
+                        overflow: hidden;
+                        animation: slideUp 1s ease-out 0.3s both;
+                    }}
+                    
+                    .subscription-card::before {{
+                        content: '';
+                        position: absolute;
+                        top: 0;
+                        left: -100%;
+                        width: 100%;
+                        height: 100%;
+                        background: linear-gradient(90deg, transparent, rgba(255,255,255,0.1), transparent);
+                        animation: shimmer 3s infinite;
+                    }}
+                    
+                    @keyframes shimmer {{
+                        0% {{ left: -100%; }}
+                        100% {{ left: 100%; }}
+                    }}
+                    
+                    .subscription-title {{
+                        font-size: 2rem;
+                        font-weight: 700;
+                        margin-bottom: 1rem;
+                        color: white;
+                    }}
+                    
+                    .steps-container {{
+                        display: grid;
+                        grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+                        gap: 2rem;
+                        margin: 2rem 0;
+                    }}
+                    
+                    .step {{
+                        background: rgba(255, 255, 255, 0.15);
+                        border-radius: 20px;
+                        padding: 2rem;
+                        border: 1px solid rgba(255, 255, 255, 0.2);
+                        transition: all 0.3s ease;
+                    }}
+                    
+                    .step:hover {{
+                        transform: translateY(-5px);
+                        background: rgba(255, 255, 255, 0.2);
+                    }}
+                    
+                    .step-number {{
+                        display: inline-block;
+                        width: 40px;
+                        height: 40px;
+                        background: var(--secondary);
+                        color: white;
+                        border-radius: 50%;
+                        line-height: 40px;
+                        font-weight: 700;
+                        margin-bottom: 1rem;
+                    }}
+                    
+                    .step h3 {{
+                        color: white;
+                        margin-bottom: 1rem;
+                        font-size: 1.2rem;
+                    }}
+                    
+                    .step p {{
+                        color: rgba(255, 255, 255, 0.9);
+                        line-height: 1.6;
+                    }}
+                    
+                    .telegram-button {{
+                        display: inline-block;
+                        background: #0088cc;
+                        color: white;
+                        padding: 12px 24px;
+                        border-radius: 25px;
+                        text-decoration: none;
+                        font-weight: 600;
+                        margin: 1rem 0;
+                        transition: all 0.3s ease;
+                        box-shadow: 0 4px 15px rgba(0, 136, 204, 0.3);
+                    }}
+                    
+                    .telegram-button:hover {{
+                        background: #006699;
+                        transform: translateY(-2px);
+                        box-shadow: 0 8px 25px rgba(0, 136, 204, 0.4);
+                    }}
+                    
+                    .input-form {{
+                        background: rgba(255, 255, 255, 0.1);
+                        border-radius: 20px;
+                        padding: 2rem;
+                        margin-top: 2rem;
+                        backdrop-filter: blur(10px);
+                        border: 1px solid rgba(255, 255, 255, 0.2);
+                    }}
+                    
+                    .input-group {{
+                        display: flex;
+                        gap: 1rem;
+                        max-width: 400px;
+                        margin: 0 auto;
+                        flex-wrap: wrap;
+                        justify-content: center;
+                    }}
+                    
+                    .chat-input {{
+                        flex: 1;
+                        min-width: 200px;
+                        padding: 15px 20px;
+                        border: 2px solid rgba(255, 255, 255, 0.2);
+                        border-radius: 50px;
+                        background: rgba(255, 255, 255, 0.1);
+                        color: white;
+                        font-size: 16px;
+                        backdrop-filter: blur(10px);
+                        transition: all 0.3s ease;
+                    }}
+                    
+                    .chat-input:focus {{
+                        outline: none;
+                        border-color: var(--secondary);
+                        box-shadow: 0 0 20px rgba(255, 107, 53, 0.3);
+                        background: rgba(255, 255, 255, 0.15);
+                    }}
+                    
+                    .chat-input::placeholder {{
+                        color: rgba(255, 255, 255, 0.6);
+                    }}
+                    
+                    .subscribe-btn {{
+                        padding: 15px 30px;
+                        background: var(--secondary);
+                        color: white;
+                        border: none;
+                        border-radius: 50px;
+                        font-size: 16px;
+                        font-weight: 600;
+                        cursor: pointer;
+                        transition: all 0.3s ease;
+                        box-shadow: 0 4px 15px rgba(255, 107, 53, 0.3);
+                        white-space: nowrap;
+                    }}
+                    
+                    .subscribe-btn:hover {{
+                        background: #e55a2b;
+                        transform: translateY(-2px);
+                        box-shadow: 0 8px 25px rgba(255, 107, 53, 0.4);
+                    }}
+                    
+                    .features {{
+                        display: grid;
+                        grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+                        gap: 1.5rem;
+                        margin: 2rem 0;
+                    }}
+                    
+                    .feature {{
+                        background: var(--dark-card);
+                        border-radius: 20px;
+                        padding: 2rem;
+                        border: 1px solid rgba(255, 255, 255, 0.1);
+                        transition: all 0.3s ease;
+                    }}
+                    
+                    .feature:hover {{
+                        border-color: var(--primary);
+                        transform: translateY(-5px);
+                        box-shadow: 0 10px 30px rgba(26, 115, 232, 0.2);
+                    }}
+                    
+                    .feature-icon {{
+                        font-size: 2.5rem;
+                        margin-bottom: 1rem;
+                        background: var(--gradient-3);
+                        -webkit-background-clip: text;
+                        -webkit-text-fill-color: transparent;
+                        background-clip: text;
+                    }}
+                    
+                    .feature h3 {{
+                        font-size: 1.3rem;
+                        margin-bottom: 1rem;
+                        color: var(--text-primary);
+                    }}
+                    
+                    .feature p {{
+                        color: var(--text-secondary);
+                        line-height: 1.6;
+                    }}
+                    
+                    .footer {{
+                        text-align: center;
+                        padding: 2rem 0;
+                        border-top: 1px solid rgba(255, 255, 255, 0.1);
+                        margin-top: 3rem;
+                        color: var(--text-secondary);
+                    }}
+                    
+                    .footer a {{
+                        color: var(--primary);
+                        text-decoration: none;
+                        transition: color 0.3s ease;
+                    }}
+                    
+                    .footer a:hover {{
+                        color: var(--text-primary);
+                    }}
+                    
+                    @media (max-width: 768px) {{
+                        .container {{
+                            padding: 1rem;
+                        }}
+                        
+                        .subscription-card {{
+                            padding: 2rem 1rem;
+                        }}
+                        
+                        .input-group {{
+                            flex-direction: column;
+                            align-items: stretch;
+                        }}
+                        
+                        .chat-input {{
+                            min-width: unset;
+                        }}
+                    }}
+                    
+                    .loading {{
+                        display: none;
+                        margin: 1rem 0;
+                    }}
+                    
+                    .spinner {{
+                        display: inline-block;
+                        width: 20px;
+                        height: 20px;
+                        border: 2px solid rgba(255,255,255,0.3);
+                        border-radius: 50%;
+                        border-top-color: white;
+                        animation: spin 1s ease-in-out infinite;
+                    }}
+                    
+                    @keyframes spin {{
+                        to {{ transform: rotate(360deg); }}
+                    }}
                 </style>
             </head>
             <body>
-                <h1>🎮 Steam Sales Bot</h1>
+                <div class="particles"></div>
                 
-                <div class="status">
-                    <h3>✅ État du service</h3>
-                    <p><strong>Status:</strong> En fonctionnement</p>
-                    <p><strong>Utilisateurs inscrits:</strong> {len(steam_bot.chat_ids) if 'steam_bot' in globals() else 0}</p>
-                    <p><strong>Prochaines vérifications:</strong> 9h et 19h (Europe/Paris)</p>
-                    <p><strong>Dernière mise à jour:</strong> {datetime.now(TIMEZONE).strftime('%d/%m/%Y %H:%M:%S')}</p>
+                <div class="container">
+                    <header class="header">
+                        <h1><i class="fas fa-gamepad"></i> Steam Sales Bot</h1>
+                        <p class="subtitle">Notifications gratuites pour les jeux Steam en promotion -100%</p>
+                    </header>
+                    
+                    <div class="glass-card">
+                        <div class="status-grid">
+                            <div class="status-item">
+                                <div class="status-icon"><i class="fas fa-heartbeat"></i></div>
+                                <div class="status-value">En ligne</div>
+                                <div class="status-label">Status du service</div>
+                            </div>
+                            <div class="status-item">
+                                <div class="status-icon"><i class="fas fa-users"></i></div>
+                                <div class="status-value">{len(steam_bot.chat_ids) if 'steam_bot' in globals() else 0}</div>
+                                <div class="status-label">Utilisateurs inscrits</div>
+                            </div>
+                            <div class="status-item">
+                                <div class="status-icon"><i class="fas fa-clock"></i></div>
+                                <div class="status-value">9h & 19h</div>
+                                <div class="status-label">Vérifications quotidiennes</div>
+                            </div>
+                            <div class="status-item">
+                                <div class="status-icon"><i class="fas fa-sync-alt"></i></div>
+                                <div class="status-value">{datetime.now(TIMEZONE).strftime('%H:%M')}</div>
+                                <div class="status-label">Dernière mise à jour</div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="subscription-card">
+                        <h2 class="subscription-title">
+                            <i class="fas fa-bell"></i> Inscription Gratuite
+                        </h2>
+                        <p style="color: rgba(255,255,255,0.9); font-size: 1.1rem; margin-bottom: 2rem;">
+                            Recevez instantanément les notifications des jeux payants qui deviennent gratuits sur Steam
+                        </p>
+                        
+                        <div class="steps-container">
+                            <div class="step">
+                                <div class="step-number">1</div>
+                                <h3><i class="fab fa-telegram"></i> Récupérez votre Chat ID</h3>
+                                <p>Cliquez sur le bouton ci-dessous pour ouvrir @userinfobot sur Telegram et obtenez votre identifiant unique.</p>
+                                <a href="https://t.me/userinfobot" target="_blank" class="telegram-button">
+                                    <i class="fab fa-telegram"></i> Ouvrir @userinfobot
+                                </a>
+                            </div>
+                            
+                            <div class="step">
+                                <div class="step-number">2</div>
+                                <h3><i class="fas fa-user-plus"></i> Inscrivez-vous</h3>
+                                <p>Entrez votre Chat ID dans le formulaire ci-dessous et commencez à recevoir les notifications.</p>
+                                
+                                <div class="input-form">
+                                    <div class="input-group">
+                                        <input type="number" id="chatId" class="chat-input" placeholder="Votre Chat ID" />
+                                        <button onclick="subscribe()" class="subscribe-btn">
+                                            <i class="fas fa-bell"></i> S'inscrire
+                                        </button>
+                                    </div>
+                                    <div class="loading">
+                                        <div class="spinner"></div>
+                                        <span style="margin-left: 10px;">Inscription en cours...</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="glass-card">
+                        <h2 style="text-align: center; margin-bottom: 2rem; color: var(--text-primary);">
+                            <i class="fas fa-star"></i> Fonctionnalités
+                        </h2>
+                        
+                        <div class="features">
+                            <div class="feature">
+                                <div class="feature-icon"><i class="fas fa-search"></i></div>
+                                <h3>Détection Intelligente</h3>
+                                <p>Algorithme avancé qui identifie uniquement les vraies promotions -100%, pas les jeux gratuits de base.</p>
+                            </div>
+                            
+                            <div class="feature">
+                                <div class="feature-icon"><i class="fas fa-filter"></i></div>
+                                <h3>Zéro Spam</h3>
+                                <p>Chaque jeu n'est notifié qu'une seule fois. Exclusion automatique des free-to-play permanents.</p>
+                            </div>
+                            
+                            <div class="feature">
+                                <div class="feature-icon"><i class="fas fa-bolt"></i></div>
+                                <h3>Notifications Instantanées</h3>
+                                <p>Vérifications automatiques à 9h et 19h (Europe/Paris) avec notifications immédiates.</p>
+                            </div>
+                            
+                            <div class="feature">
+                                <div class="feature-icon"><i class="fas fa-link"></i></div>
+                                <h3>Liens Directs</h3>
+                                <p>Accès direct aux pages Steam pour télécharger immédiatement vos jeux gratuits.</p>
+                            </div>
+                            
+                            <div class="feature">
+                                <div class="feature-icon"><i class="fas fa-shield-alt"></i></div>
+                                <h3>100% Gratuit</h3>
+                                <p>Service entièrement gratuit, sans publicité, sans limitation. Votre confidentialité respectée.</p>
+                            </div>
+                            
+                            <div class="feature">
+                                <div class="feature-icon"><i class="fas fa-mobile-alt"></i></div>
+                                <h3>Multi-plateforme</h3>
+                                <p>Notifications Telegram disponibles sur tous vos appareils : mobile, desktop, web.</p>
+                            </div>
+                        </div>
+                    </div>
                 </div>
                 
-                <div class="subscribe">
-                    <h3>� Inscription GRATUITE en 2 étapes</h3>
+                <footer class="footer">
+                    <p>
+                        <a href="/health"><i class="fas fa-heartbeat"></i> Health Check</a> | 
+                        <i class="fab fa-python"></i> Créé avec Python | 
+                        <i class="fas fa-cloud"></i> Hébergé sur Render
+                    </p>
+                    <p style="margin-top: 1rem; font-size: 0.875rem;">
+                        © 2024 Steam Sales Bot - Service gratuit et open source
+                    </p>
+                </footer>
+                
+                <script>
+                    // Particles animation
+                    function createParticles() {{
+                        const particlesContainer = document.querySelector('.particles');
+                        const particleCount = 50;
+                        
+                        for (let i = 0; i < particleCount; i++) {{
+                            const particle = document.createElement('div');
+                            particle.className = 'particle';
+                            particle.style.left = Math.random() * 100 + '%';
+                            particle.style.width = particle.style.height = Math.random() * 4 + 2 + 'px';
+                            particle.style.animationDelay = Math.random() * 20 + 's';
+                            particle.style.animationDuration = (Math.random() * 10 + 10) + 's';
+                            particlesContainer.appendChild(particle);
+                        }}
+                    }}
                     
-                    <p><strong>Étape 1:</strong> Récupérez votre Chat ID</p>
-                    <p>👉 <a href="https://t.me/userinfobot" target="_blank" style="color: #007bff; font-weight: bold;">Cliquez ici pour ouvrir @userinfobot</a></p>
-                    <p><small>Envoyez n'importe quoi au bot, il vous donnera votre chat_id</small></p>
-                    
-                    <p><strong>Étape 2:</strong> Inscrivez-vous</p>
-                    <input type="number" id="chatId" placeholder="Votre chat_id" style="margin: 10px;">
-                    <br>
-                    <button onclick="subscribe()" style="margin: 10px;">🔔 S'inscrire aux notifications</button>
-                    
-                    <script>
-                        function subscribe() {{
-                            const chatId = document.getElementById('chatId').value;
-                            if (chatId && !isNaN(chatId)) {{
-                                window.location.href = '/subscribe/' + chatId;
-                            }} else {{
-                                alert('Veuillez entrer un chat_id valide (nombre)');
-                            }}
+                    // Subscription function
+                    function subscribe() {{
+                        const chatId = document.getElementById('chatId').value;
+                        const button = document.querySelector('.subscribe-btn');
+                        const loading = document.querySelector('.loading');
+                        
+                        if (!chatId || isNaN(chatId)) {{
+                            showNotification('Veuillez entrer un Chat ID valide (nombre)', 'error');
+                            return;
                         }}
                         
-                        document.getElementById('chatId').addEventListener('keypress', function(e) {{
-                            if (e.key === 'Enter') {{
-                                subscribe();
-                            }}
+                        button.disabled = true;
+                        loading.style.display = 'block';
+                        
+                        // Simulate loading then redirect
+                        setTimeout(() => {{
+                            window.location.href = '/subscribe/' + chatId;
+                        }}, 1000);
+                    }}
+                    
+                    function showNotification(message, type) {{
+                        const notification = document.createElement('div');
+                        notification.style.cssText = `
+                            position: fixed;
+                            top: 20px;
+                            right: 20px;
+                            padding: 15px 25px;
+                            background: ${{type === 'error' ? '#ff4757' : '#2ed573'}};
+                            color: white;
+                            border-radius: 10px;
+                            box-shadow: 0 4px 15px rgba(0,0,0,0.3);
+                            z-index: 1000;
+                            animation: slideIn 0.3s ease;
+                        `;
+                        notification.textContent = message;
+                        document.body.appendChild(notification);
+                        
+                        setTimeout(() => {{
+                            notification.remove();
+                        }}, 3000);
+                    }}
+                    
+                    // Enter key support
+                    document.getElementById('chatId').addEventListener('keypress', function(e) {{
+                        if (e.key === 'Enter') {{
+                            subscribe();
+                        }}
+                    }});
+                    
+                    // Initialize
+                    document.addEventListener('DOMContentLoaded', function() {{
+                        createParticles();
+                        
+                        // Add subtle animations on scroll
+                        const observer = new IntersectionObserver((entries) => {{
+                            entries.forEach(entry => {{
+                                if (entry.isIntersecting) {{
+                                    entry.target.style.opacity = '1';
+                                    entry.target.style.transform = 'translateY(0)';
+                                }}
+                            }});
                         }});
-                    </script>
-                </div>
-                
-                <div class="info">
-                    <h3>🎮 Fonctionnalités</h3>
-                    <ul>
-                        <li>✅ Détection automatique des vraies promotions -100%</li>
-                        <li>✅ Exclusion des jeux free-to-play de base</li>
-                        <li>✅ Notifications à 9h et 19h (Europe/Paris)</li>
-                        <li>✅ Aucun spam - chaque jeu notifié une seule fois</li>
-                        <li>✅ Liens directs vers Steam</li>
-                        <li>✅ Inscription 100% gratuite</li>
-                    </ul>
-                </div>
-                
-                <hr>
-                <p><small><a href="/health">Health Check (JSON)</a> | 
-                Bot créé avec Python | 
-                Hébergé sur Render</small></p>
+                        
+                        document.querySelectorAll('.glass-card, .feature').forEach(el => {{
+                            el.style.opacity = '0';
+                            el.style.transform = 'translateY(30px)';
+                            el.style.transition = 'all 0.6s ease';
+                            observer.observe(el);
+                        }});
+                    }});
+                </script>
             </body>
             </html>
             """
