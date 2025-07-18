@@ -81,11 +81,28 @@ services:
 
 ## 🎮 Utilisation
 
+### 📱 S'inscrire aux notifications
+
+**Option 1 : Via Telegram (recommandé)**
+1. Recherchez votre bot sur Telegram
+2. Envoyez `/start` pour vous inscrire automatiquement
+3. Testez avec `/check` pour vérifier les jeux actuels
+
+**Option 2 : Ajout manuel (si les commandes sont désactivées)**
+1. Ouvrez une conversation avec [@userinfobot](https://t.me/userinfobot)
+2. Il vous donnera votre `chat_id` (ex: 123456789)
+3. Ajoutez votre `chat_id` dans le fichier `sent_games.json` :
+```json
+{
+  "sent_games": {},
+  "chat_ids": [123456789, 987654321]
+}
+```
+
 ### Commandes disponibles
 
 - `/start` - Initialiser le bot et s'inscrire aux notifications
 - `/check` - Vérifier manuellement les jeux gratuits
-- `/stats` - Afficher les statistiques du bot
 
 ### Fonctionnement automatique
 

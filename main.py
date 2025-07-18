@@ -392,14 +392,14 @@ def main():
         logger.info("✅ Bot Steam Sales démarré avec succès !")
         logger.info("🔔 Les notifications automatiques sont actives")
         logger.info("📅 Prochaines vérifications: 9h et 19h (Europe/Paris)")
-        logger.info("💡 Note: Les commandes Telegram (/start, /check) sont temporairement désactivées")
-        logger.info("🎯 Focus: Notifications automatiques uniquement")
+        logger.info("📱 Pour recevoir les notifications, ajoutez votre chat_id dans sent_games.json")
         
         # Faire une vérification initiale pour tester
         logger.info("🧪 Test initial de l'API Steam...")
         scheduled_check_sync()
         
         # Boucle principale pour maintenir le service actif
+        logger.info("🔄 Service en fonctionnement - Maintien de la connexion...")
         while True:
             time.sleep(60)  # Vérifier toutes les minutes si le service doit s'arrêter
             
