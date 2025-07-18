@@ -297,6 +297,7 @@ def scheduled_check_sync():
 def send_automatic_notifications(new_games):
     """Envoie les notifications automatiques pour les nouveaux jeux"""
     import asyncio
+    from telegram import Bot
     
     async def send_notifications():
         """Envoie les notifications de nouveaux jeux"""
@@ -306,7 +307,7 @@ def send_automatic_notifications(new_games):
             logger.error("Token Telegram manquant pour les notifications automatiques")
             return
             
-        application = Application.builder().token(token).build()
+        bot = Bot(token=token)
         
         for chat_id in steam_bot.chat_ids:
             try:
@@ -327,7 +328,7 @@ def send_automatic_notifications(new_games):
                     message += "⚡ **Promotions limitées dans le temps !**"
                 
                 # Envoyer le message
-                await application.bot.send_message(
+                await bot.send_message(
                     chat_id=chat_id,
                     text=message,
                     parse_mode='Markdown',
@@ -346,15 +347,14 @@ def send_automatic_notifications(new_games):
 
 def main():
     """Fonction principale"""
-    # Créer l'application Telegram
-    application = Application.builder().token(TELEGRAM_TOKEN).build()
+    logger.info("Démarrage du Steam Sales Bot (vraies promotions uniquement)...")
     
-    # Ajouter les handlers
-    application.add_handler(CommandHandler("start", start_command))
-    application.add_handler(CommandHandler("check", check_command))
-    application.add_handler(CallbackQueryHandler(button_callback))
+    # Vérifier que le token est disponible
+    if not TELEGRAM_TOKEN:
+        logger.error("Token Telegram manquant - arrêt du service")
+        return
     
-    # Configurer le scheduler
+    # Configurer le scheduler pour les vérifications automatiques
     scheduler = BackgroundScheduler(timezone=TIMEZONE)
     
     # Programmer les vérifications à 9h et 19h (heure de Paris)
@@ -377,16 +377,41 @@ def main():
     logger.info("Scheduler démarré - Vérifications programmées à 9h et 19h (Europe/Paris)")
     
     try:
-        # Démarrer le bot
-        logger.info("Démarrage du Steam Sales Bot (vraies promotions uniquement)...")
-        application.run_polling(
-            allowed_updates=Update.ALL_TYPES,
-            drop_pending_updates=True
-        )
+        # Configuration pour arrêt propre
+        import time
+        import signal
+        
+        def signal_handler(signum, frame):
+            logger.info("Signal d'arrêt reçu, fermeture propre...")
+            scheduler.shutdown()
+            exit(0)
+        
+        signal.signal(signal.SIGTERM, signal_handler)
+        signal.signal(signal.SIGINT, signal_handler)
+        
+        logger.info("✅ Bot Steam Sales démarré avec succès !")
+        logger.info("🔔 Les notifications automatiques sont actives")
+        logger.info("📅 Prochaines vérifications: 9h et 19h (Europe/Paris)")
+        logger.info("💡 Note: Les commandes Telegram (/start, /check) sont temporairement désactivées")
+        logger.info("🎯 Focus: Notifications automatiques uniquement")
+        
+        # Faire une vérification initiale pour tester
+        logger.info("🧪 Test initial de l'API Steam...")
+        scheduled_check_sync()
+        
+        # Boucle principale pour maintenir le service actif
+        while True:
+            time.sleep(60)  # Vérifier toutes les minutes si le service doit s'arrêter
+            
+    except KeyboardInterrupt:
+        logger.info("Arrêt demandé par l'utilisateur")
     except Exception as e:
-        logger.error(f"Erreur lors du démarrage: {e}")
+        logger.error(f"Erreur dans la boucle principale: {e}")
     finally:
-        scheduler.shutdown()
+        try:
+            scheduler.shutdown()
+        except Exception:
+            pass
         logger.info("Bot arrêté proprement")
 
 if __name__ == '__main__':
