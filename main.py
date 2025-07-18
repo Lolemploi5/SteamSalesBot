@@ -88,9 +88,15 @@ class HealthCheckHandler(BaseHTTPRequestHandler):
 def start_http_server():
     """Démarre le serveur HTTP pour Render"""
     port = int(os.environ.get('PORT', 10000))
-    server = HTTPServer(('0.0.0.0', port), HealthCheckHandler)
-    logger.info(f"🌐 Serveur HTTP démarré sur le port {port}")
-    server.serve_forever()
+    try:
+        server = HTTPServer(('0.0.0.0', port), HealthCheckHandler)
+        logger.info(f"🌐 Serveur HTTP démarré sur le port {port}")
+        server.serve_forever()
+    except OSError as e:
+        if "Address already in use" in str(e):
+            logger.info(f"⚠️ Port {port} déjà utilisé - serveur HTTP ignoré (normal sur Render)")
+        else:
+            logger.error(f"Erreur serveur HTTP: {e}")
 
 class SteamSalesBot:
     def __init__(self):
