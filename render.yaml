@@ -1,0 +1,11 @@
+services:
+  - type: web
+    name: steam-sales-bot
+    runtime: python
+    buildCommand: pip install -r requirements.txt
+    startCommand: python main.py
+    # IMPORTANT: Définissez TELEGRAM_TOKEN dans les variables d'environnement Render
+    # Ne jamais inclure le token directement dans ce fichier !
+    envVars:
+      - key: TELEGRAM_TOKEN
+        sync: false  # Doit être défini manuellement dans Render
