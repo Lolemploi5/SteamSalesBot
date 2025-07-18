@@ -268,20 +268,81 @@ def scheduled_check_sync():
     logger.info("Vérification programmée des promotions -100%")
     try:
         free_games = steam_bot.get_free_games()
-        if free_games:
-            new_games = []
-            for game in free_games:
-                app_id = game['app_id']
-                if not steam_bot.is_game_already_sent(app_id):
-                    new_games.append(game)
-                    steam_bot.mark_game_as_sent(app_id, game['name'])
+        if not free_games:
+            logger.info("Aucune promotion disponible actuellement")
+            return
             
-            if new_games and steam_bot.chat_ids:
-                logger.info(f"Nouvelles promotions trouvées: {len(new_games)}")
-        else:
+        new_games = []
+        for game in free_games:
+            app_id = game['app_id']
+            if not steam_bot.is_game_already_sent(app_id):
+                new_games.append(game)
+                steam_bot.mark_game_as_sent(app_id, game['name'])
+        
+        if not new_games:
             logger.info("Aucune nouvelle promotion trouvée")
+            return
+            
+        if not steam_bot.chat_ids:
+            logger.info("Aucun utilisateur inscrit pour recevoir les notifications")
+            return
+        
+        # Envoyer les notifications automatiquement
+        send_automatic_notifications(new_games)
+        logger.info(f"Notifications envoyées pour {len(new_games)} nouveaux jeux")
+        
     except Exception as e:
         logger.error(f"Erreur lors de la vérification programmée: {e}")
+
+def send_automatic_notifications(new_games):
+    """Envoie les notifications automatiques pour les nouveaux jeux"""
+    import asyncio
+    
+    async def send_notifications():
+        """Envoie les notifications de nouveaux jeux"""
+        # Vérifier que le token existe
+        token = TELEGRAM_TOKEN
+        if not token:
+            logger.error("Token Telegram manquant pour les notifications automatiques")
+            return
+            
+        application = Application.builder().token(token).build()
+        
+        for chat_id in steam_bot.chat_ids:
+            try:
+                # Créer le message
+                if len(new_games) == 1:
+                    game = new_games[0]
+                    message = (f"🎮 **Nouvelle promotion -100% sur Steam !**\n\n"
+                             f"🎯 **{game['name']}**\n"
+                             f"💰 Temporairement gratuit (normalement ${game['initial_price']:.2f})\n"
+                             f"🔗 [Obtenir le jeu maintenant]({game['url']})\n\n"
+                             f"⚡ **Promotion limitée dans le temps !**")
+                else:
+                    message = f"🎮 **{len(new_games)} nouvelles promotions -100% sur Steam !**\n\n"
+                    for game in new_games:
+                        message += (f"🎯 **{game['name']}**\n"
+                                  f"💰 Temporairement gratuit (normalement ${game['initial_price']:.2f})\n"
+                                  f"🔗 [Obtenir maintenant]({game['url']})\n\n")
+                    message += "⚡ **Promotions limitées dans le temps !**"
+                
+                # Envoyer le message
+                await application.bot.send_message(
+                    chat_id=chat_id,
+                    text=message,
+                    parse_mode='Markdown',
+                    disable_web_page_preview=False
+                )
+                
+            except Exception as e:
+                logger.error(f"Erreur lors de l'envoi à {chat_id}: {e}")
+    
+    # Exécuter les notifications
+    try:
+        asyncio.run(send_notifications())
+        logger.info(f"Envoyé {len(new_games)} promotions à {len(steam_bot.chat_ids)} utilisateurs")
+    except Exception as e:
+        logger.error(f"Erreur lors de l'envoi des notifications automatiques: {e}")
 
 def main():
     """Fonction principale"""
