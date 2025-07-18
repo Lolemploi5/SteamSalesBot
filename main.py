@@ -56,6 +56,61 @@ class HealthCheckHandler(BaseHTTPRequestHandler):
                 "total_users": len(steam_bot.chat_ids) if 'steam_bot' in globals() else 0
             }
             self.wfile.write(json.dumps(status, indent=2).encode())
+            
+        elif self.path.startswith('/subscribe/'):
+            # Endpoint d'inscription: /subscribe/CHAT_ID
+            try:
+                chat_id = int(self.path.split('/')[-1])
+                
+                # Ajouter le chat_id à la liste
+                if 'steam_bot' in globals():
+                    steam_bot.add_chat_id(chat_id)
+                    
+                self.send_response(200)
+                self.send_header('Content-type', 'text/html')
+                self.end_headers()
+                
+                html = f"""
+                <!DOCTYPE html>
+                <html>
+                <head>
+                    <title>Inscription réussie - Steam Sales Bot</title>
+                    <meta charset="utf-8">
+                    <style>
+                        body {{ font-family: Arial, sans-serif; max-width: 600px; margin: 50px auto; padding: 20px; text-align: center; }}
+                        .success {{ background: #d4edda; border: 1px solid #c3e6cb; padding: 20px; border-radius: 10px; margin: 20px 0; }}
+                        .info {{ background: #d1ecf1; border: 1px solid #bee5eb; padding: 15px; border-radius: 5px; margin: 20px 0; }}
+                    </style>
+                </head>
+                <body>
+                    <h1>🎉 Inscription réussie !</h1>
+                    
+                    <div class="success">
+                        <h3>✅ Vous êtes maintenant inscrit !</h3>
+                        <p><strong>Chat ID:</strong> {chat_id}</p>
+                        <p><strong>Utilisateurs inscrits:</strong> {len(steam_bot.chat_ids) if 'steam_bot' in globals() else 0}</p>
+                    </div>
+                    
+                    <div class="info">
+                        <h3>🔔 Notifications automatiques</h3>
+                        <p>Vous recevrez maintenant des notifications Telegram quand des jeux Steam payants deviennent gratuits !</p>
+                        <p><strong>Horaires:</strong> 9h et 19h (Europe/Paris)</p>
+                    </div>
+                    
+                    <p><a href="/">← Retour à l'accueil</a></p>
+                </body>
+                </html>
+                """
+                self.wfile.write(html.encode())
+                
+                logger.info(f"✅ Nouvel utilisateur inscrit: {chat_id}")
+                
+            except (ValueError, IndexError):
+                self.send_response(400)
+                self.send_header('Content-type', 'text/html')
+                self.end_headers()
+                self.wfile.write(b"<h1>Erreur: Chat ID invalide</h1><p><a href='/'>Retour</a></p>")
+        
         else:
             self.send_response(200)
             self.send_header('Content-type', 'text/html')
@@ -72,7 +127,11 @@ class HealthCheckHandler(BaseHTTPRequestHandler):
                     .status {{ background: #d4edda; border: 1px solid #c3e6cb; padding: 15px; border-radius: 5px; margin: 20px 0; }}
                     .info {{ background: #d1ecf1; border: 1px solid #bee5eb; padding: 15px; border-radius: 5px; margin: 20px 0; }}
                     .steps {{ background: #fff3cd; border: 1px solid #ffeaa7; padding: 15px; border-radius: 5px; margin: 20px 0; }}
+                    .subscribe {{ background: #d1f2eb; border: 1px solid #a3e4d7; padding: 20px; border-radius: 5px; margin: 20px 0; text-align: center; }}
                     code {{ background: #f8f9fa; padding: 2px 5px; border-radius: 3px; }}
+                    input {{ padding: 10px; font-size: 16px; border: 1px solid #ccc; border-radius: 3px; width: 200px; }}
+                    button {{ padding: 10px 20px; font-size: 16px; background: #007bff; color: white; border: none; border-radius: 3px; cursor: pointer; }}
+                    button:hover {{ background: #0056b3; }}
                 </style>
             </head>
             <body>
@@ -86,29 +145,34 @@ class HealthCheckHandler(BaseHTTPRequestHandler):
                     <p><strong>Dernière mise à jour:</strong> {datetime.now(TIMEZONE).strftime('%d/%m/%Y %H:%M:%S')}</p>
                 </div>
                 
-                <div class="info">
-                    <h3>🔔 Comment recevoir les notifications</h3>
-                    <p>Ce bot vous notifie automatiquement quand des jeux Steam payants deviennent gratuits (promotions -100%).</p>
-                </div>
-                
-                <div class="steps">
-                    <h3>📱 Instructions d'inscription</h3>
-                    <p><strong>Étape 1:</strong> Récupérez votre chat_id</p>
-                    <ol>
-                        <li>Ouvrez Telegram</li>
-                        <li>Cherchez <a href="https://t.me/userinfobot" target="_blank">@userinfobot</a></li>
-                        <li>Envoyez-lui n'importe quoi (ex: "hello")</li>
-                        <li>Il vous donnera votre chat_id (ex: 123456789)</li>
-                    </ol>
+                <div class="subscribe">
+                    <h3>� Inscription GRATUITE en 2 étapes</h3>
                     
-                    <p><strong>Étape 2:</strong> Inscription au bot</p>
-                    <p>Contactez l'administrateur du bot avec votre chat_id pour être ajouté à la liste des notifications.</p>
+                    <p><strong>Étape 1:</strong> Récupérez votre Chat ID</p>
+                    <p>👉 <a href="https://t.me/userinfobot" target="_blank" style="color: #007bff; font-weight: bold;">Cliquez ici pour ouvrir @userinfobot</a></p>
+                    <p><small>Envoyez n'importe quoi au bot, il vous donnera votre chat_id</small></p>
                     
-                    <p><strong>Alternative:</strong> Si vous avez accès au code source, modifiez <code>sent_games.json</code> :</p>
-                    <pre><code>{{
-  "sent_games": {{}},
-  "chat_ids": [VOTRE_CHAT_ID_ICI]
-}}</code></pre>
+                    <p><strong>Étape 2:</strong> Inscrivez-vous</p>
+                    <input type="number" id="chatId" placeholder="Votre chat_id" style="margin: 10px;">
+                    <br>
+                    <button onclick="subscribe()" style="margin: 10px;">🔔 S'inscrire aux notifications</button>
+                    
+                    <script>
+                        function subscribe() {{
+                            const chatId = document.getElementById('chatId').value;
+                            if (chatId && !isNaN(chatId)) {{
+                                window.location.href = '/subscribe/' + chatId;
+                            }} else {{
+                                alert('Veuillez entrer un chat_id valide (nombre)');
+                            }}
+                        }}
+                        
+                        document.getElementById('chatId').addEventListener('keypress', function(e) {{
+                            if (e.key === 'Enter') {{
+                                subscribe();
+                            }}
+                        }});
+                    </script>
                 </div>
                 
                 <div class="info">
@@ -119,6 +183,7 @@ class HealthCheckHandler(BaseHTTPRequestHandler):
                         <li>✅ Notifications à 9h et 19h (Europe/Paris)</li>
                         <li>✅ Aucun spam - chaque jeu notifié une seule fois</li>
                         <li>✅ Liens directs vers Steam</li>
+                        <li>✅ Inscription 100% gratuite</li>
                     </ul>
                 </div>
                 
