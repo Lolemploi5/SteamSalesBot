@@ -12,6 +12,9 @@ import asyncio
 from datetime import datetime
 from typing import Dict, List, Set
 import pytz
+# Ajout pour le serveur HTTP Render
+import threading
+from http.server import HTTPServer, BaseHTTPRequestHandler
 
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import Application, CommandHandler, CallbackQueryHandler, ContextTypes
@@ -36,6 +39,58 @@ if not TELEGRAM_TOKEN:
 STEAM_API_URL = "https://store.steampowered.com/api/featured/"
 SENT_GAMES_FILE = "sent_games.json"
 TIMEZONE = pytz.timezone('Europe/Paris')
+
+# Serveur HTTP minimal pour Render
+class HealthCheckHandler(BaseHTTPRequestHandler):
+    def do_GET(self):
+        if self.path == '/health':
+            self.send_response(200)
+            self.send_header('Content-type', 'application/json')
+            self.end_headers()
+            
+            status = {
+                "status": "healthy",
+                "service": "Steam Sales Bot",
+                "timestamp": datetime.now(TIMEZONE).isoformat(),
+                "scheduled_checks": "9:00 and 19:00 Europe/Paris",
+                "total_users": len(steam_bot.chat_ids) if 'steam_bot' in globals() else 0
+            }
+            self.wfile.write(json.dumps(status, indent=2).encode())
+        else:
+            self.send_response(200)
+            self.send_header('Content-type', 'text/html')
+            self.end_headers()
+            
+            html = f"""
+            <!DOCTYPE html>
+            <html>
+            <head>
+                <title>Steam Sales Bot</title>
+                <meta charset="utf-8">
+            </head>
+            <body>
+                <h1>🎮 Steam Sales Bot</h1>
+                <p>✅ Bot en fonctionnement</p>
+                <p>🔔 Notifications automatiques: 9h et 19h (Europe/Paris)</p>
+                <p>👥 Utilisateurs inscrits: {len(steam_bot.chat_ids) if 'steam_bot' in globals() else 0}</p>
+                <p>⏰ Dernière mise à jour: {datetime.now(TIMEZONE).strftime('%d/%m/%Y %H:%M:%S')}</p>
+                <hr>
+                <p><a href="/health">Health Check (JSON)</a></p>
+            </body>
+            </html>
+            """
+            self.wfile.write(html.encode())
+    
+    def log_message(self, format, *args):
+        # Supprimer les logs HTTP pour éviter le spam
+        pass
+
+def start_http_server():
+    """Démarre le serveur HTTP pour Render"""
+    port = int(os.environ.get('PORT', 10000))
+    server = HTTPServer(('0.0.0.0', port), HealthCheckHandler)
+    logger.info(f"🌐 Serveur HTTP démarré sur le port {port}")
+    server.serve_forever()
 
 class SteamSalesBot:
     def __init__(self):
@@ -354,6 +409,10 @@ def main():
         logger.error("Token Telegram manquant - arrêt du service")
         return
     
+    # Démarrer le serveur HTTP pour Render (en arrière-plan)
+    http_thread = threading.Thread(target=start_http_server, daemon=True)
+    http_thread.start()
+    
     # Configurer le scheduler pour les vérifications automatiques
     scheduler = BackgroundScheduler(timezone=TIMEZONE)
     
@@ -415,4 +474,9 @@ def main():
         logger.info("Bot arrêté proprement")
 
 if __name__ == '__main__':
+    # Démarrer le serveur HTTP dans un thread séparé
+    http_thread = threading.Thread(target=start_http_server, daemon=True)
+    http_thread.start()
+    
+    # Lancer la fonction principale du bot
     main()
