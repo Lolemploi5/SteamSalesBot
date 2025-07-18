@@ -311,18 +311,22 @@ def main():
         replace_existing=True
     )
     
-    # Démarrer le scheduler dans un thread séparé
+    # Démarrer le scheduler
+    scheduler.start()
+    logger.info("Scheduler démarré - Vérifications programmées à 9h et 19h (Europe/Paris)")
+    
     try:
-        scheduler.start()
-        logger.info("Scheduler démarré - Vérifications programmées à 9h et 19h (Europe/Paris)")
-        
         # Démarrer le bot
         logger.info("Démarrage du Steam Sales Bot (vraies promotions uniquement)...")
-        application.run_polling(allowed_updates=Update.ALL_TYPES)
-    except KeyboardInterrupt:
-        logger.info("Arrêt du bot...")
+        application.run_polling(
+            allowed_updates=Update.ALL_TYPES,
+            drop_pending_updates=True
+        )
+    except Exception as e:
+        logger.error(f"Erreur lors du démarrage: {e}")
     finally:
         scheduler.shutdown()
+        logger.info("Bot arrêté proprement")
 
 if __name__ == '__main__':
     main()
