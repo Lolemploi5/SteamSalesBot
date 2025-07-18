@@ -67,15 +67,65 @@ class HealthCheckHandler(BaseHTTPRequestHandler):
             <head>
                 <title>Steam Sales Bot</title>
                 <meta charset="utf-8">
+                <style>
+                    body {{ font-family: Arial, sans-serif; max-width: 800px; margin: 0 auto; padding: 20px; }}
+                    .status {{ background: #d4edda; border: 1px solid #c3e6cb; padding: 15px; border-radius: 5px; margin: 20px 0; }}
+                    .info {{ background: #d1ecf1; border: 1px solid #bee5eb; padding: 15px; border-radius: 5px; margin: 20px 0; }}
+                    .steps {{ background: #fff3cd; border: 1px solid #ffeaa7; padding: 15px; border-radius: 5px; margin: 20px 0; }}
+                    code {{ background: #f8f9fa; padding: 2px 5px; border-radius: 3px; }}
+                </style>
             </head>
             <body>
                 <h1>🎮 Steam Sales Bot</h1>
-                <p>✅ Bot en fonctionnement</p>
-                <p>🔔 Notifications automatiques: 9h et 19h (Europe/Paris)</p>
-                <p>👥 Utilisateurs inscrits: {len(steam_bot.chat_ids) if 'steam_bot' in globals() else 0}</p>
-                <p>⏰ Dernière mise à jour: {datetime.now(TIMEZONE).strftime('%d/%m/%Y %H:%M:%S')}</p>
+                
+                <div class="status">
+                    <h3>✅ État du service</h3>
+                    <p><strong>Status:</strong> En fonctionnement</p>
+                    <p><strong>Utilisateurs inscrits:</strong> {len(steam_bot.chat_ids) if 'steam_bot' in globals() else 0}</p>
+                    <p><strong>Prochaines vérifications:</strong> 9h et 19h (Europe/Paris)</p>
+                    <p><strong>Dernière mise à jour:</strong> {datetime.now(TIMEZONE).strftime('%d/%m/%Y %H:%M:%S')}</p>
+                </div>
+                
+                <div class="info">
+                    <h3>🔔 Comment recevoir les notifications</h3>
+                    <p>Ce bot vous notifie automatiquement quand des jeux Steam payants deviennent gratuits (promotions -100%).</p>
+                </div>
+                
+                <div class="steps">
+                    <h3>📱 Instructions d'inscription</h3>
+                    <p><strong>Étape 1:</strong> Récupérez votre chat_id</p>
+                    <ol>
+                        <li>Ouvrez Telegram</li>
+                        <li>Cherchez <a href="https://t.me/userinfobot" target="_blank">@userinfobot</a></li>
+                        <li>Envoyez-lui n'importe quoi (ex: "hello")</li>
+                        <li>Il vous donnera votre chat_id (ex: 123456789)</li>
+                    </ol>
+                    
+                    <p><strong>Étape 2:</strong> Inscription au bot</p>
+                    <p>Contactez l'administrateur du bot avec votre chat_id pour être ajouté à la liste des notifications.</p>
+                    
+                    <p><strong>Alternative:</strong> Si vous avez accès au code source, modifiez <code>sent_games.json</code> :</p>
+                    <pre><code>{{
+  "sent_games": {{}},
+  "chat_ids": [VOTRE_CHAT_ID_ICI]
+}}</code></pre>
+                </div>
+                
+                <div class="info">
+                    <h3>🎮 Fonctionnalités</h3>
+                    <ul>
+                        <li>✅ Détection automatique des vraies promotions -100%</li>
+                        <li>✅ Exclusion des jeux free-to-play de base</li>
+                        <li>✅ Notifications à 9h et 19h (Europe/Paris)</li>
+                        <li>✅ Aucun spam - chaque jeu notifié une seule fois</li>
+                        <li>✅ Liens directs vers Steam</li>
+                    </ul>
+                </div>
+                
                 <hr>
-                <p><a href="/health">Health Check (JSON)</a></p>
+                <p><small><a href="/health">Health Check (JSON)</a> | 
+                Bot créé avec Python | 
+                Hébergé sur Render</small></p>
             </body>
             </html>
             """
@@ -419,25 +469,20 @@ def main():
     http_thread = threading.Thread(target=start_http_server, daemon=True)
     http_thread.start()
     
-    # Créer l'application Telegram
+    # Test simple du bot Telegram (sans polling)
     try:
-        from telegram.ext import Application, CommandHandler, CallbackQueryHandler
-        
-        application = Application.builder().token(TELEGRAM_TOKEN).build()
-        
-        # Ajouter les handlers pour les commandes
-        application.add_handler(CommandHandler("start", start_command))
-        application.add_handler(CommandHandler("check", check_command))
-        application.add_handler(CallbackQueryHandler(button_callback))
-        
-        logger.info("✅ Commandes Telegram activées : /start, /check")
-        telegram_enabled = True
-        
+        from telegram import Bot
+        test_bot = Bot(token=TELEGRAM_TOKEN)
+        # Test simple pour vérifier que le token fonctionne
+        bot_info = asyncio.run(test_bot.get_me())
+        logger.info(f"🤖 Bot Telegram connecté: @{bot_info.username}")
+        logger.info("💡 Pour vous inscrire, ajoutez votre chat_id dans sent_games.json")
+        logger.info("📖 Instructions: https://steamsalesbot.onrender.com")
+        telegram_working = True
     except Exception as e:
-        logger.warning(f"⚠️ Impossible d'activer les commandes Telegram: {e}")
+        logger.warning(f"⚠️ Problème avec le bot Telegram: {e}")
         logger.info("🔔 Mode notifications automatiques uniquement")
-        application = None
-        telegram_enabled = False
+        telegram_working = False
     
     # Configurer le scheduler pour les vérifications automatiques
     scheduler = BackgroundScheduler(timezone=TIMEZONE)
@@ -469,12 +514,6 @@ def main():
         def signal_handler(signum, frame):
             logger.info("Signal d'arrêt reçu, fermeture propre...")
             scheduler.shutdown()
-            if telegram_enabled and application:
-                try:
-                    # Arrêt propre de l'application Telegram
-                    logger.info("Arrêt de l'application Telegram...")
-                except Exception:
-                    pass
             exit(0)
         
         signal.signal(signal.SIGTERM, signal_handler)
@@ -484,34 +523,19 @@ def main():
         logger.info("🔔 Les notifications automatiques sont actives")
         logger.info("📅 Prochaines vérifications: 9h et 19h (Europe/Paris)")
         
-        if telegram_enabled:
-            logger.info("🤖 Commandes Telegram disponibles : /start, /check")
+        if telegram_working:
+            logger.info("📱 Bot Telegram opérationnel pour les notifications")
         else:
-            logger.info("📱 Pour recevoir les notifications, ajoutez votre chat_id dans sent_games.json")
+            logger.info("📱 Notifications uniquement (ajoutez votre chat_id manuellement)")
         
         # Faire une vérification initiale pour tester
         logger.info("🧪 Test initial de l'API Steam...")
         scheduled_check_sync()
         
-        # Démarrer le bot Telegram si possible
-        if telegram_enabled and application:
-            try:
-                logger.info("🚀 Démarrage du bot Telegram avec polling...")
-                application.run_polling(
-                    allowed_updates=Update.ALL_TYPES,
-                    drop_pending_updates=True
-                )
-            except Exception as e:
-                logger.error(f"❌ Erreur avec le polling Telegram: {e}")
-                logger.info("🔄 Basculement en mode service simple...")
-                # Boucle de maintien si le polling échoue
-                while True:
-                    time.sleep(60)
-        else:
-            # Boucle principale pour maintenir le service actif
-            logger.info("🔄 Service en fonctionnement - Maintien de la connexion...")
-            while True:
-                time.sleep(60)
+        # Boucle principale pour maintenir le service actif
+        logger.info("🔄 Service en fonctionnement - Maintien de la connexion...")
+        while True:
+            time.sleep(60)  # Vérifier toutes les minutes si le service doit s'arrêter
             
     except KeyboardInterrupt:
         logger.info("Arrêt demandé par l'utilisateur")
