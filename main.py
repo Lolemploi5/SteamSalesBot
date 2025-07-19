@@ -1180,11 +1180,58 @@ class SteamSalesBot:
         
         # Envoyer une notification de bienvenue si c'est un nouvel utilisateur
         if is_new_user:
-            welcome_task = asyncio.create_task(self.send_welcome_notification(chat_id))
-            # Stocker la tâche pour éviter la collecte prématurée
-            self._welcome_tasks = getattr(self, '_welcome_tasks', set())
-            self._welcome_tasks.add(welcome_task)
-            welcome_task.add_done_callback(self._welcome_tasks.discard)
+            try:
+                # Vérifier s'il y a un event loop actif
+                try:
+                    asyncio.get_running_loop()
+                    # Si on est dans un event loop existant, créer une tâche
+                    welcome_task = asyncio.create_task(self.send_welcome_notification(chat_id))
+                    self._welcome_tasks = getattr(self, '_welcome_tasks', set())
+                    self._welcome_tasks.add(welcome_task)
+                    welcome_task.add_done_callback(self._welcome_tasks.discard)
+                except RuntimeError:
+                    # Pas d'event loop actif, utiliser l'API HTTP directe
+                    self.send_welcome_notification_sync(chat_id)
+            except Exception as e:
+                logger.warning(f"Erreur lors de l'envoi de la notification de bienvenue: {e}")
+    
+    def send_welcome_notification_sync(self, chat_id: int):
+        """Envoie une notification de bienvenue via l'API HTTP Telegram (version synchrone)"""
+        try:
+            welcome_message = f"""🎉 **Bienvenue sur Steam Sales Bot !**
+
+✅ **Inscription confirmée !**
+🆔 **Votre Chat ID :** `{chat_id}`
+
+🎮 **Ce que vous recevrez :**
+• Notifications automatiques à 9h et 19h (heure de Paris)
+• Jeux Steam en vraie promotion -100% uniquement
+• Pas de spam, seulement les vraies bonnes affaires !
+
+🔍 **Commandes disponibles :**
+• `/start` - Afficher le menu principal
+• `/check` - Vérifier manuellement les promotions
+
+🌐 **Partagez le bot :** https://t.me/Steam_Sales_Notifier_Bot
+
+⚡ **Première vérification en cours...**"""
+
+            # Envoyer via l'API HTTP Telegram
+            url = f"https://api.telegram.org/bot{TELEGRAM_TOKEN}/sendMessage"
+            data = {
+                'chat_id': chat_id,
+                'text': welcome_message,
+                'parse_mode': 'Markdown'
+            }
+            
+            response = requests.post(url, data=data, timeout=10)
+            if response.status_code == 200:
+                logger.info(f"✅ Notification de bienvenue envoyée à {chat_id}")
+            else:
+                logger.warning(f"⚠️ Erreur envoi notification bienvenue (HTTP {response.status_code})")
+                
+        except Exception as e:
+            logger.error(f"Erreur lors de l'envoi de la notification de bienvenue: {e}")
     
     async def send_welcome_notification(self, chat_id: int):
         """Envoie une notification de bienvenue à un nouvel utilisateur"""
