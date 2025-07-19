@@ -1626,4 +1626,4 @@ if __name__ == '__main__':
     http_thread.start()
     
     # Lancer la fonction principale du bot
-    main()                                            
+    main()
