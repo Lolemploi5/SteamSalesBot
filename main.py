@@ -1532,35 +1532,44 @@ def main():
         application.add_handler(CallbackQueryHandler(button_callback))
         
         # Test simple pour vérifier que le token fonctionne
-        bot_info = asyncio.run(application.bot.get_me())
-        logger.info(f"🤖 Bot Telegram connecté: @{bot_info.username}")
-        logger.info(f"� Lien du bot: https://t.me/{bot_info.username}")
-        logger.info("📱 Commandes disponibles: /start, /check")
-        logger.info("🌐 Interface web: https://steamsalesbot.onrender.com")
-        telegram_working = True
-        
-        # Démarrer le bot en mode polling (en arrière-plan)
-        async def run_telegram_bot():
-            """Démarre le bot Telegram en mode polling"""
+        async def test_bot_connection():
             try:
-                logger.info("� Démarrage du polling Telegram...")
-                await application.initialize()
-                await application.start()
-                await application.updater.start_polling()
-                
-                # Maintenir le bot actif
-                while True:
-                    await asyncio.sleep(1)
-                    
+                bot_info = await application.bot.get_me()
+                logger.info(f"🤖 Bot Telegram connecté: @{bot_info.username}")
+                logger.info(f"🔗 Lien du bot: https://t.me/{bot_info.username}")
+                logger.info("📱 Commandes disponibles: /start, /check")
+                logger.info("🌐 Interface web: https://steamsalesbot.onrender.com")
+                return True
             except Exception as e:
-                logger.error(f"Erreur dans le polling Telegram: {e}")
+                logger.error(f"Erreur de connexion bot: {e}")
+                return False
         
-        # Lancer le bot Telegram dans un thread séparé
-        telegram_thread = threading.Thread(
-            target=lambda: asyncio.run(run_telegram_bot()),
-            daemon=True
-        )
-        telegram_thread.start()
+        # Tester la connexion
+        connection_ok = asyncio.run(test_bot_connection())
+        if connection_ok:
+            telegram_working = True
+            
+            # Démarrer le bot en mode polling dans un thread dédié
+            def start_telegram_polling():
+                """Fonction pour démarrer le polling dans un thread séparé"""
+                try:
+                    logger.info("🚀 Démarrage du polling Telegram...")
+                    # Utiliser run_polling() qui gère automatiquement l'event loop
+                    application.run_polling(
+                        stop_signals=None,  # Pas de gestion des signaux dans le thread
+                        drop_pending_updates=True
+                    )
+                except Exception as e:
+                    logger.error(f"Erreur dans le polling Telegram: {e}")
+            
+            # Lancer le polling dans un thread séparé
+            telegram_thread = threading.Thread(
+                target=start_telegram_polling,
+                daemon=True,
+                name="TelegramBot"
+            )
+            telegram_thread.start()
+            logger.info("✅ Bot Telegram démarré en arrière-plan")
         
     except Exception as e:
         logger.warning(f"⚠️ Problème avec le bot Telegram: {e}")
@@ -1593,8 +1602,14 @@ def main():
         # Configuration pour arrêt propre
         def signal_handler(signum, frame):
             logger.info("Signal d'arrêt reçu, fermeture propre...")
-            scheduler.shutdown()
-            exit(0)
+            try:
+                scheduler.shutdown(wait=False)
+                if application:
+                    logger.info("Arrêt du bot Telegram...")
+            except Exception as e:
+                logger.error(f"Erreur lors de l'arrêt: {e}")
+            finally:
+                exit(0)
         
         signal.signal(signal.SIGTERM, signal_handler)
         signal.signal(signal.SIGINT, signal_handler)
