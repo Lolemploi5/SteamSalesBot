@@ -1520,56 +1520,34 @@ def main():
     
     # Configuration et démarrage du bot Telegram
     telegram_working = False
-    application = None
     
     try:
-        # Créer l'application Telegram
-        application = Application.builder().token(TELEGRAM_TOKEN).build()
-        
-        # Ajouter les handlers de commandes
-        application.add_handler(CommandHandler("start", start_command))
-        application.add_handler(CommandHandler("check", check_command))
-        application.add_handler(CallbackQueryHandler(button_callback))
-        
-        # Test simple pour vérifier que le token fonctionne
-        async def test_bot_connection():
+        # Test simple de connexion sans créer l'application complète
+        async def test_telegram_token():
+            """Test rapide du token Telegram"""
             try:
-                bot_info = await application.bot.get_me()
-                logger.info(f"🤖 Bot Telegram connecté: @{bot_info.username}")
+                from telegram import Bot
+                bot = Bot(token=TELEGRAM_TOKEN)
+                bot_info = await bot.get_me()
+                await bot.close()  # Fermer proprement la connexion
+                logger.info(f"🤖 Bot Telegram disponible: @{bot_info.username}")
                 logger.info(f"🔗 Lien du bot: https://t.me/{bot_info.username}")
-                logger.info("📱 Commandes disponibles: /start, /check")
-                logger.info("🌐 Interface web: https://steamsalesbot.onrender.com")
                 return True
             except Exception as e:
-                logger.error(f"Erreur de connexion bot: {e}")
+                logger.error(f"Erreur de test token: {e}")
                 return False
         
-        # Tester la connexion
-        connection_ok = asyncio.run(test_bot_connection())
-        if connection_ok:
+        # Tester le token
+        token_valid = asyncio.run(test_telegram_token())
+        
+        if token_valid:
             telegram_working = True
-            
-            # Démarrer le bot en mode polling dans un thread dédié
-            def start_telegram_polling():
-                """Fonction pour démarrer le polling dans un thread séparé"""
-                try:
-                    logger.info("🚀 Démarrage du polling Telegram...")
-                    # Utiliser run_polling() qui gère automatiquement l'event loop
-                    application.run_polling(
-                        stop_signals=None,  # Pas de gestion des signaux dans le thread
-                        drop_pending_updates=True
-                    )
-                except Exception as e:
-                    logger.error(f"Erreur dans le polling Telegram: {e}")
-            
-            # Lancer le polling dans un thread séparé
-            telegram_thread = threading.Thread(
-                target=start_telegram_polling,
-                daemon=True,
-                name="TelegramBot"
-            )
-            telegram_thread.start()
-            logger.info("✅ Bot Telegram démarré en arrière-plan")
+            logger.info("✅ Token Telegram validé")
+            logger.info("� Commandes disponibles: /start, /check")
+            logger.info("🌐 Interface web: https://steamsalesbot.onrender.com")
+            logger.info("🔄 Bot Telegram sera démarré à la demande pour les commandes")
+        else:
+            raise Exception("Token Telegram invalide")
         
     except Exception as e:
         logger.warning(f"⚠️ Problème avec le bot Telegram: {e}")
@@ -1604,8 +1582,7 @@ def main():
             logger.info("Signal d'arrêt reçu, fermeture propre...")
             try:
                 scheduler.shutdown(wait=False)
-                if application:
-                    logger.info("Arrêt du bot Telegram...")
+                logger.info("Scheduler arrêté")
             except Exception as e:
                 logger.error(f"Erreur lors de l'arrêt: {e}")
             finally:
@@ -1649,4 +1626,4 @@ if __name__ == '__main__':
     http_thread.start()
     
     # Lancer la fonction principale du bot
-    main()
+    main()                                            
