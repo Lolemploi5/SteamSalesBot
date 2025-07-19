@@ -9,14 +9,15 @@ import os
 import logging
 import requests
 import asyncio
+import threading
+import time
+import signal
 from datetime import datetime
 from typing import Dict, List, Set
-import pytz
-# Ajout pour le serveur HTTP Render
-import threading
 from http.server import HTTPServer, BaseHTTPRequestHandler
 
-from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
+import pytz
+from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup, Bot
 from telegram.ext import Application, CommandHandler, CallbackQueryHandler, ContextTypes
 from apscheduler.schedulers.background import BackgroundScheduler
 from apscheduler.triggers.cron import CronTrigger
@@ -40,12 +41,17 @@ STEAM_API_URL = "https://store.steampowered.com/api/featured/"
 SENT_GAMES_FILE = "sent_games.json"
 TIMEZONE = pytz.timezone('Europe/Paris')
 
+# Constantes
+CONTENT_TYPE_JSON = 'application/json'
+CONTENT_TYPE_HTML = 'text/html'
+PORT = int(os.getenv('PORT', 8000))
+
 # Serveur HTTP minimal pour Render
 class HealthCheckHandler(BaseHTTPRequestHandler):
     def do_GET(self):
         if self.path == '/health':
             self.send_response(200)
-            self.send_header('Content-type', 'application/json')
+            self.send_header('Content-type', CONTENT_TYPE_JSON)
             self.end_headers()
             
             status = {
@@ -67,7 +73,7 @@ class HealthCheckHandler(BaseHTTPRequestHandler):
                     steam_bot.add_chat_id(chat_id)
                     
                 self.send_response(200)
-                self.send_header('Content-type', 'text/html')
+                self.send_header('Content-type', CONTENT_TYPE_HTML)
                 self.end_headers()
                 
                 html = f"""
@@ -383,6 +389,7 @@ class HealthCheckHandler(BaseHTTPRequestHandler):
                                     Notifications Automatiques Activées
                                 </h3>
                                 <p class="info-text">
+                                    🎉 <strong>Une notification de bienvenue a été envoyée sur votre Telegram !</strong><br><br>
                                     Vous recevrez maintenant des notifications Telegram instantanées 
                                     dès qu'un jeu Steam payant devient temporairement gratuit !
                                 </p>
@@ -397,6 +404,14 @@ class HealthCheckHandler(BaseHTTPRequestHandler):
                                 <i class="fas fa-home"></i>
                                 Retour à l'accueil
                             </a>
+                            
+                            <div style="margin-top: 1rem; padding: 1rem; background: rgba(26, 115, 232, 0.1); border: 1px solid rgba(26, 115, 232, 0.3); border-radius: 10px;">
+                                <p style="color: var(--primary); font-size: 0.9rem; margin: 0;">
+                                    <i class="fab fa-telegram"></i> 
+                                    <strong>Vérifiez votre Telegram maintenant !</strong><br>
+                                    Une notification de bienvenue vous a été envoyée.
+                                </p>
+                            </div>
                         </div>
                     </div>
                     
@@ -444,13 +459,13 @@ class HealthCheckHandler(BaseHTTPRequestHandler):
                 
             except (ValueError, IndexError):
                 self.send_response(400)
-                self.send_header('Content-type', 'text/html')
+                self.send_header('Content-type', CONTENT_TYPE_HTML)
                 self.end_headers()
                 self.wfile.write(b"<h1>Erreur: Chat ID invalide</h1><p><a href='/'>Retour</a></p>")
         
         else:
             self.send_response(200)
-            self.send_header('Content-type', 'text/html')
+            self.send_header('Content-type', CONTENT_TYPE_HTML)
             self.end_headers()
             
             html = f"""
@@ -1117,14 +1132,13 @@ class HealthCheckHandler(BaseHTTPRequestHandler):
 
 def start_http_server():
     """Démarre le serveur HTTP pour Render"""
-    port = int(os.environ.get('PORT', 10000))
     try:
-        server = HTTPServer(('0.0.0.0', port), HealthCheckHandler)
-        logger.info(f"🌐 Serveur HTTP démarré sur le port {port}")
+        server = HTTPServer(('0.0.0.0', PORT), HealthCheckHandler)
+        logger.info(f"🌐 Serveur HTTP démarré sur le port {PORT}")
         server.serve_forever()
     except OSError as e:
         if "Address already in use" in str(e):
-            logger.info(f"⚠️ Port {port} déjà utilisé - serveur HTTP ignoré (normal sur Render)")
+            logger.info(f"⚠️ Port {PORT} déjà utilisé - serveur HTTP ignoré (normal sur Render)")
         else:
             logger.error(f"Erreur serveur HTTP: {e}")
 
@@ -1158,10 +1172,66 @@ class SteamSalesBot:
             logger.error(f"Erreur lors de la sauvegarde de {SENT_GAMES_FILE}: {e}")
     
     def add_chat_id(self, chat_id: int):
-        """Ajoute un chat_id à la liste des destinataires"""
+        """Ajoute un chat_id à la liste des destinataires et envoie une notification de bienvenue"""
+        is_new_user = chat_id not in self.chat_ids
         self.chat_ids.add(chat_id)
         self.save_sent_games()
         logger.info(f"Chat ID {chat_id} ajouté à la liste des destinataires")
+        
+        # Envoyer une notification de bienvenue si c'est un nouvel utilisateur
+        if is_new_user:
+            welcome_task = asyncio.create_task(self.send_welcome_notification(chat_id))
+            # Stocker la tâche pour éviter la collecte prématurée
+            self._welcome_tasks = getattr(self, '_welcome_tasks', set())
+            self._welcome_tasks.add(welcome_task)
+            welcome_task.add_done_callback(self._welcome_tasks.discard)
+    
+    async def send_welcome_notification(self, chat_id: int):
+        """Envoie une notification de bienvenue à un nouvel utilisateur"""
+        try:
+            # Vérifier si le token Telegram est disponible
+            token = os.environ.get('TELEGRAM_BOT_TOKEN')
+            if not token:
+                logger.warning("Token Telegram non configuré - notification de bienvenue ignorée")
+                return
+                
+            # Créer un bot temporaire pour envoyer la notification
+            bot = Bot(token=token)
+            
+            welcome_message = f"""🎉 **Bienvenue sur Steam Sales Bot !**
+
+✅ **Inscription confirmée !**
+🆔 **Votre Chat ID :** `{chat_id}`
+👥 **Vous rejoignez {len(self.chat_ids)} gamers inscrits**
+
+🎮 **Ce que vous allez recevoir :**
+• Notifications instantanées des jeux Steam en vraie promotion -100%
+• Exclusion des jeux gratuits de base (pas de spam)
+• Liens directs vers Steam pour télécharger immédiatement
+• Vérifications automatiques à 9h et 19h (Europe/Paris)
+
+🔔 **Prochaines notifications :**
+• **Automatiques** : 9h00 et 19h00 tous les jours
+• **À la demande** : Utilisez la commande /check quand vous voulez
+
+⚡ **Important :** Je ne notifie que les **vraies promotions temporaires**, pas les jeux free-to-play permanents comme CS2, TF2, Dota 2, etc.
+
+🎯 **Bon gaming et n'hésitez pas à partager le bot !**
+
+_Vous pouvez utiliser /check à tout moment pour vérifier manuellement._"""
+            
+            await bot.send_message(
+                chat_id=chat_id,
+                text=welcome_message,
+                parse_mode='Markdown',
+                disable_web_page_preview=True
+            )
+            
+            logger.info(f"✅ Notification de bienvenue envoyée à {chat_id}")
+            
+        except Exception as e:
+            logger.error(f"❌ Erreur lors de l'envoi de la notification de bienvenue à {chat_id}: {e}")
+            # Ne pas faire échouer l'inscription si la notification échoue
     
     def get_free_games(self) -> List[Dict]:
         """Récupère uniquement les jeux en vraie promotion -100% (pas les F2P de base)"""
@@ -1388,7 +1458,6 @@ def scheduled_check_sync():
 def send_automatic_notifications(new_games):
     """Envoie les notifications automatiques pour les nouveaux jeux"""
     import asyncio
-    from telegram import Bot
     
     async def send_notifications():
         """Envoie les notifications de nouveaux jeux"""
@@ -1449,16 +1518,50 @@ def main():
     http_thread = threading.Thread(target=start_http_server, daemon=True)
     http_thread.start()
     
-    # Test simple du bot Telegram (sans polling)
+    # Configuration et démarrage du bot Telegram
+    telegram_working = False
+    application = None
+    
     try:
-        from telegram import Bot
-        test_bot = Bot(token=TELEGRAM_TOKEN)
+        # Créer l'application Telegram
+        application = Application.builder().token(TELEGRAM_TOKEN).build()
+        
+        # Ajouter les handlers de commandes
+        application.add_handler(CommandHandler("start", start_command))
+        application.add_handler(CommandHandler("check", check_command))
+        application.add_handler(CallbackQueryHandler(button_callback))
+        
         # Test simple pour vérifier que le token fonctionne
-        bot_info = asyncio.run(test_bot.get_me())
+        bot_info = asyncio.run(application.bot.get_me())
         logger.info(f"🤖 Bot Telegram connecté: @{bot_info.username}")
-        logger.info("💡 Pour vous inscrire, ajoutez votre chat_id dans sent_games.json")
-        logger.info("📖 Instructions: https://steamsalesbot.onrender.com")
+        logger.info(f"� Lien du bot: https://t.me/{bot_info.username}")
+        logger.info("📱 Commandes disponibles: /start, /check")
+        logger.info("🌐 Interface web: https://steamsalesbot.onrender.com")
         telegram_working = True
+        
+        # Démarrer le bot en mode polling (en arrière-plan)
+        async def run_telegram_bot():
+            """Démarre le bot Telegram en mode polling"""
+            try:
+                logger.info("� Démarrage du polling Telegram...")
+                await application.initialize()
+                await application.start()
+                await application.updater.start_polling()
+                
+                # Maintenir le bot actif
+                while True:
+                    await asyncio.sleep(1)
+                    
+            except Exception as e:
+                logger.error(f"Erreur dans le polling Telegram: {e}")
+        
+        # Lancer le bot Telegram dans un thread séparé
+        telegram_thread = threading.Thread(
+            target=lambda: asyncio.run(run_telegram_bot()),
+            daemon=True
+        )
+        telegram_thread.start()
+        
     except Exception as e:
         logger.warning(f"⚠️ Problème avec le bot Telegram: {e}")
         logger.info("🔔 Mode notifications automatiques uniquement")
@@ -1488,9 +1591,6 @@ def main():
     
     try:
         # Configuration pour arrêt propre
-        import time
-        import signal
-        
         def signal_handler(signum, frame):
             logger.info("Signal d'arrêt reçu, fermeture propre...")
             scheduler.shutdown()

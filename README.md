@@ -7,9 +7,12 @@ Un bot Telegram automatisé qui surveille les jeux Steam gratuits (promotion -10
 - ✅ **Vérification automatique** : Tous les jours à 9h et 19h (heure de Paris)
 - 🎮 **Détection des jeux gratuits** : Via l'API Steam officielle
 - 📱 **Notifications Telegram** : Messages automatiques pour chaque nouveau jeu gratuit
+- 🎉 **Notification de bienvenue** : Message automatique lors de l'inscription web
+- 🌐 **Interface web moderne** : Inscription gratuite via formulaire web stylé
 - 🔍 **Vérification manuelle** : Commande `/check` pour vérifier à tout moment
 - 🚫 **Pas de doublons** : Système de mémorisation des jeux déjà envoyés
 - 👥 **Multi-utilisateurs** : Support de plusieurs utilisateurs Telegram
+- 🔒 **Exclusion des F2P** : Ignore les jeux gratuits permanents (CS2, TF2, etc.)
 
 ## 📋 Prérequis
 
@@ -83,15 +86,22 @@ services:
 
 ### 📱 S'inscrire aux notifications
 
-**Option 1 : Via Telegram (recommandé)**
+**Option 1 : Via l'interface web (recommandé)**
+1. Rendez-vous sur votre URL Render (ex: `https://votre-app.onrender.com`)
+2. Suivez les instructions pour récupérer votre Chat ID via [@userinfobot](https://t.me/userinfobot)
+3. Entrez votre Chat ID dans le formulaire et cliquez sur "S'inscrire"
+4. ✅ Vous recevrez automatiquement une notification de bienvenue sur Telegram !
+
+**Option 2 : Via Telegram**
 1. Recherchez votre bot sur Telegram
 2. Envoyez `/start` pour vous inscrire automatiquement
 3. Testez avec `/check` pour vérifier les jeux actuels
 
-**Option 2 : Ajout manuel (si les commandes sont désactivées)**
+**Option 3 : Ajout manuel (développeurs)**
 1. Ouvrez une conversation avec [@userinfobot](https://t.me/userinfobot)
 2. Il vous donnera votre `chat_id` (ex: 123456789)
 3. Ajoutez votre `chat_id` dans le fichier `sent_games.json` :
+
 ```json
 {
   "sent_games": {},
