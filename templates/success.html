@@ -1,0 +1,377 @@
+
+                <!DOCTYPE html>
+                <html lang="fr">
+                <head>
+                    <meta charset="UTF-8">
+                    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+                    <title>Inscription Réussie - Steam Sales Bot</title>
+                    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+                    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+                    <style>
+                        * {
+                            margin: 0;
+                            padding: 0;
+                            box-sizing: border-box;
+                        }
+                        
+                        :root {
+                            --success: #00d4aa;
+                            --primary: #1a73e8;
+                            --secondary: #ff6b35;
+                            --dark: #0f1419;
+                            --dark-card: #1a1f2e;
+                            --text-primary: #ffffff;
+                            --text-secondary: #94a3b8;
+                            --gradient-success: linear-gradient(135deg, #00d4aa 0%, #2ed573 100%);
+                            --glass: rgba(255, 255, 255, 0.1);
+                            --glass-border: rgba(255, 255, 255, 0.2);
+                        }
+                        
+                        body {
+                            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+                            background: var(--dark);
+                            color: var(--text-primary);
+                            min-height: 100vh;
+                            display: flex;
+                            align-items: center;
+                            justify-content: center;
+                            position: relative;
+                            overflow: hidden;
+                        }
+                        
+                        body::before {
+                            content: '';
+                            position: fixed;
+                            top: 0;
+                            left: 0;
+                            width: 100%;
+                            height: 100%;
+                            background: 
+                                radial-gradient(circle at 30% 40%, rgba(0, 212, 170, 0.4) 0%, transparent 50%),
+                                radial-gradient(circle at 70% 60%, rgba(46, 213, 115, 0.4) 0%, transparent 50%),
+                                radial-gradient(circle at 50% 80%, rgba(26, 115, 232, 0.3) 0%, transparent 50%);
+                            animation: celebration 15s ease infinite;
+                            z-index: -1;
+                        }
+                        
+                        @keyframes celebration {
+                            0%, 100% { transform: scale(1) rotate(0deg); }
+                            50% { transform: scale(1.2) rotate(180deg); }
+                        }
+                        
+                        .confetti {
+                            position: fixed;
+                            top: 0;
+                            left: 0;
+                            width: 100%;
+                            height: 100%;
+                            overflow: hidden;
+                            z-index: -1;
+                        }
+                        
+                        .confetti-piece {
+                            position: absolute;
+                            width: 8px;
+                            height: 8px;
+                            background: var(--success);
+                            animation: confettiFall 3s infinite linear;
+                        }
+                        
+                        @keyframes confettiFall {
+                            0% { transform: translateY(-100vh) rotate(0deg); opacity: 1; }
+                            100% { transform: translateY(100vh) rotate(720deg); opacity: 0; }
+                        }
+                        
+                        .container {
+                            max-width: 600px;
+                            margin: 0 auto;
+                            padding: 2rem;
+                            position: relative;
+                            z-index: 1;
+                        }
+                        
+                        .success-card {
+                            background: var(--glass);
+                            backdrop-filter: blur(20px);
+                            border: 1px solid var(--glass-border);
+                            border-radius: 25px;
+                            padding: 3rem;
+                            text-align: center;
+                            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3);
+                            animation: successSlideUp 1s ease-out;
+                        }
+                        
+                        @keyframes successSlideUp {
+                            0% { transform: translateY(50px) scale(0.9); opacity: 0; }
+                            100% { transform: translateY(0) scale(1); opacity: 1; }
+                        }
+                        
+                        .success-icon {
+                            width: 100px;
+                            height: 100px;
+                            margin: 0 auto 2rem;
+                            background: var(--gradient-success);
+                            border-radius: 50%;
+                            display: flex;
+                            align-items: center;
+                            justify-content: center;
+                            font-size: 3rem;
+                            color: white;
+                            animation: bounce 2s infinite;
+                            box-shadow: 0 10px 30px rgba(0, 212, 170, 0.3);
+                        }
+                        
+                        @keyframes bounce {
+                            0%, 20%, 50%, 80%, 100% { transform: translateY(0); }
+                            40% { transform: translateY(-10px); }
+                            60% { transform: translateY(-5px); }
+                        }
+                        
+                        .success-title {
+                            font-size: 2.5rem;
+                            font-weight: 700;
+                            margin-bottom: 1rem;
+                            background: var(--gradient-success);
+                            -webkit-background-clip: text;
+                            -webkit-text-fill-color: transparent;
+                            background-clip: text;
+                        }
+                        
+                        .success-subtitle {
+                            font-size: 1.2rem;
+                            color: var(--text-secondary);
+                            margin-bottom: 2rem;
+                        }
+                        
+                        .stats-grid {
+                            display: grid;
+                            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+                            gap: 1.5rem;
+                            margin: 2rem 0;
+                        }
+                        
+                        .stat-item {
+                            background: var(--dark-card);
+                            border-radius: 15px;
+                            padding: 1.5rem;
+                            border: 1px solid rgba(0, 212, 170, 0.2);
+                            transition: all 0.3s ease;
+                        }
+                        
+                        .stat-item:hover {
+                            border-color: var(--success);
+                            transform: translateY(-3px);
+                            box-shadow: 0 10px 25px rgba(0, 212, 170, 0.2);
+                        }
+                        
+                        .stat-icon {
+                            font-size: 1.5rem;
+                            color: var(--success);
+                            margin-bottom: 0.5rem;
+                        }
+                        
+                        .stat-value {
+                            font-size: 1.3rem;
+                            font-weight: 600;
+                            color: var(--text-primary);
+                            margin-bottom: 0.25rem;
+                        }
+                        
+                        .stat-label {
+                            color: var(--text-secondary);
+                            font-size: 0.875rem;
+                        }
+                        
+                        .info-card {
+                            background: rgba(0, 212, 170, 0.1);
+                            border: 1px solid rgba(0, 212, 170, 0.3);
+                            border-radius: 20px;
+                            padding: 2rem;
+                            margin: 2rem 0;
+                            backdrop-filter: blur(10px);
+                        }
+                        
+                        .info-title {
+                            display: flex;
+                            align-items: center;
+                            justify-content: center;
+                            gap: 0.5rem;
+                            font-size: 1.5rem;
+                            font-weight: 600;
+                            margin-bottom: 1rem;
+                            color: var(--success);
+                        }
+                        
+                        .info-text {
+                            color: var(--text-secondary);
+                            line-height: 1.6;
+                            margin-bottom: 1rem;
+                        }
+                        
+                        .schedule {
+                            background: var(--dark-card);
+                            border-radius: 10px;
+                            padding: 1rem;
+                            border: 1px solid rgba(255, 255, 255, 0.1);
+                        }
+                        
+                        .schedule-title {
+                            color: var(--text-primary);
+                            font-weight: 600;
+                            margin-bottom: 0.5rem;
+                        }
+                        
+                        .schedule-time {
+                            color: var(--success);
+                            font-weight: 700;
+                            font-size: 1.1rem;
+                        }
+                        
+                        .home-button {
+                            display: inline-flex;
+                            align-items: center;
+                            gap: 0.5rem;
+                            background: var(--primary);
+                            color: white;
+                            padding: 15px 30px;
+                            border-radius: 50px;
+                            text-decoration: none;
+                            font-weight: 600;
+                            margin-top: 2rem;
+                            transition: all 0.3s ease;
+                            box-shadow: 0 4px 15px rgba(26, 115, 232, 0.3);
+                        }
+                        
+                        .home-button:hover {
+                            background: #1557b0;
+                            transform: translateY(-2px);
+                            box-shadow: 0 8px 25px rgba(26, 115, 232, 0.4);
+                            color: white;
+                            text-decoration: none;
+                        }
+                        
+                        @media (max-width: 768px) {
+                            .container {
+                                padding: 1rem;
+                            }
+                            
+                            .success-card {
+                                padding: 2rem 1rem;
+                            }
+                            
+                            .success-title {
+                                font-size: 2rem;
+                            }
+                            
+                            .stats-grid {
+                                grid-template-columns: 1fr;
+                            }
+                        }
+                        
+                        .pulse {
+                            animation: pulse 2s infinite;
+                        }
+                        
+                        @keyframes pulse {
+                            0% { box-shadow: 0 0 0 0 rgba(0, 212, 170, 0.4); }
+                            70% { box-shadow: 0 0 0 20px rgba(0, 212, 170, 0); }
+                            100% { box-shadow: 0 0 0 0 rgba(0, 212, 170, 0); }
+                        }
+                    </style>
+                </head>
+                <body>
+                    <div class="confetti"></div>
+                    
+                    <div class="container">
+                        <div class="success-card">
+                            <div class="success-icon pulse">
+                                <i class="fas fa-check"></i>
+                            </div>
+                            
+                            <h1 class="success-title">Inscription Réussie !</h1>
+                            <p class="success-subtitle">Bienvenue dans la communauté Steam Sales Bot</p>
+                            
+                            <div class="stats-grid">
+                                <div class="stat-item">
+                                    <div class="stat-icon"><i class="fas fa-id-card"></i></div>
+                                    <div class="stat-value">$chat_id</div>
+                                    <div class="stat-label">Votre Chat ID</div>
+                                </div>
+                                
+                                <div class="stat-item">
+                                    <div class="stat-icon"><i class="fas fa-users"></i></div>
+                                    <div class="stat-value">$total_users</div>
+                                    <div class="stat-label">Utilisateurs inscrits</div>
+                                </div>
+                            </div>
+                            
+                            <div class="info-card">
+                                <h3 class="info-title">
+                                    <i class="fas fa-bell"></i>
+                                    Notifications Automatiques Activées
+                                </h3>
+                                <p class="info-text">
+                                    🎉 <strong>Une notification de bienvenue a été envoyée sur votre Telegram !</strong><br><br>
+                                    Vous recevrez maintenant des notifications Telegram instantanées 
+                                    dès qu'un jeu Steam payant devient temporairement gratuit !
+                                </p>
+                                
+                                <div class="schedule">
+                                    <div class="schedule-title">Horaires de vérification :</div>
+                                    <div class="schedule-time">🕘 9h00 & 🕕 19h00 (Europe/Paris)</div>
+                                </div>
+                            </div>
+                            
+                            <a href="/" class="home-button">
+                                <i class="fas fa-home"></i>
+                                Retour à l'accueil
+                            </a>
+                            
+                            <div style="margin-top: 1rem; padding: 1rem; background: rgba(26, 115, 232, 0.1); border: 1px solid rgba(26, 115, 232, 0.3); border-radius: 10px;">
+                                <p style="color: var(--primary); font-size: 0.9rem; margin: 0;">
+                                    <i class="fab fa-telegram"></i> 
+                                    <strong>Vérifiez votre Telegram maintenant !</strong><br>
+                                    Une notification de bienvenue vous a été envoyée.
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <script>
+                        // Create confetti animation
+                        function createConfetti() {
+                            const confettiContainer = document.querySelector('.confetti');
+                            const colors = ['#00d4aa', '#2ed573', '#1a73e8', '#ff6b35'];
+                            
+                            for (let i = 0; i < 100; i++) {
+                                const confetti = document.createElement('div');
+                                confetti.className = 'confetti-piece';
+                                confetti.style.left = Math.random() * 100 + '%';
+                                confetti.style.backgroundColor = colors[Math.floor(Math.random() * colors.length)];
+                                confetti.style.animationDelay = Math.random() * 3 + 's';
+                                confetti.style.animationDuration = (Math.random() * 2 + 2) + 's';
+                                confettiContainer.appendChild(confetti);
+                            }
+                        }
+                        
+                        // Initialize on page load
+                        document.addEventListener('DOMContentLoaded', function() {
+                            createConfetti();
+                            
+                            // Auto-redirect after 10 seconds
+                            setTimeout(() => {
+                                const button = document.querySelector('.home-button');
+                                if (button) {
+                                    button.style.background = 'var(--secondary)';
+                                    button.innerHTML = '<i class="fas fa-clock"></i> Redirection automatique...';
+                                    
+                                    setTimeout(() => {
+                                        window.location.href = '/';
+                                    }, 2000);
+                                }
+                            }, 8000);
+                        });
+                    </script>
+                </body>
+                </html>
+                
