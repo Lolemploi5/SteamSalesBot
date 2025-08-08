@@ -1668,9 +1668,4 @@ def main():
         logger.info("Bot arrêté proprement")
 
 if __name__ == '__main__':
-    # Démarrer le serveur HTTP dans un thread séparé
-    http_thread = threading.Thread(target=start_http_server, daemon=True)
-    http_thread.start()
-    
-    # Lancer la fonction principale du bot
     main()
