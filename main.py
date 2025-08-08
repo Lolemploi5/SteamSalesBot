@@ -215,13 +215,12 @@ class SteamSalesBot:
         """Envoie une notification de bienvenue à un nouvel utilisateur"""
         try:
             # Vérifier si le token Telegram est disponible
-            token = os.environ.get('TELEGRAM_BOT_TOKEN')
-            if not token:
+            if not TELEGRAM_TOKEN:
                 logger.warning("Token Telegram non configuré - notification de bienvenue ignorée")
                 return
-                
+
             # Créer un bot temporaire pour envoyer la notification
-            bot = Bot(token=token)
+            bot = Bot(token=TELEGRAM_TOKEN)
             
             welcome_message = f"""🎉 **Bienvenue sur Steam Sales Bot !**
 
@@ -487,12 +486,11 @@ def send_automatic_notifications(new_games):
     async def send_notifications():
         """Envoie les notifications de nouveaux jeux"""
         # Vérifier que le token existe
-        token = TELEGRAM_TOKEN
-        if not token:
+        if not TELEGRAM_TOKEN:
             logger.error("Token Telegram manquant pour les notifications automatiques")
             return
-            
-        bot = Bot(token=token)
+
+        bot = Bot(token=TELEGRAM_TOKEN)
         
         for chat_id in steam_bot.chat_ids:
             try:
