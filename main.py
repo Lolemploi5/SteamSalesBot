@@ -10,14 +10,12 @@ import logging
 import requests
 import asyncio
 import threading
-import time
-import signal
 from datetime import datetime
 from typing import Dict, List, Set
 from http.server import HTTPServer, BaseHTTPRequestHandler
 
 import pytz
-from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup, Bot
+from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import Application, CommandHandler, CallbackQueryHandler, ContextTypes
 from apscheduler.schedulers.background import BackgroundScheduler
 from apscheduler.triggers.cron import CronTrigger
@@ -1618,44 +1616,34 @@ def main():
         id='evening_check',
         replace_existing=True
     )
-    
+
     # Démarrer le scheduler
     scheduler.start()
     logger.info("Scheduler démarré - Vérifications programmées à 9h et 19h (Europe/Paris)")
-    
+
+    # Initialiser l'application Telegram
+    application = Application.builder().token(TELEGRAM_TOKEN).build()
+    application.add_handler(CommandHandler('start', start_command))
+    application.add_handler(CommandHandler('check', check_command))
+    application.add_handler(CallbackQueryHandler(button_callback))
+
     try:
-        # Configuration pour arrêt propre
-        def signal_handler(signum, frame):
-            logger.info("Signal d'arrêt reçu, fermeture propre...")
-            try:
-                scheduler.shutdown(wait=False)
-                logger.info("Scheduler arrêté")
-            except Exception as e:
-                logger.error(f"Erreur lors de l'arrêt: {e}")
-            finally:
-                exit(0)
-        
-        signal.signal(signal.SIGTERM, signal_handler)
-        signal.signal(signal.SIGINT, signal_handler)
-        
         logger.info("✅ Bot Steam Sales démarré avec succès !")
         logger.info("🔔 Les notifications automatiques sont actives")
         logger.info("📅 Prochaines vérifications: 9h et 19h (Europe/Paris)")
-        
+
         if telegram_working:
             logger.info("📱 Bot Telegram opérationnel pour les notifications")
         else:
             logger.info("📱 Notifications uniquement (ajoutez votre chat_id manuellement)")
-        
+
         # Faire une vérification initiale pour tester
         logger.info("🧪 Test initial de l'API Steam...")
         scheduled_check_sync()
-        
-        # Boucle principale pour maintenir le service actif
-        logger.info("🔄 Service en fonctionnement - Maintien de la connexion...")
-        while True:
-            time.sleep(60)  # Vérifier toutes les minutes si le service doit s'arrêter
-            
+
+        # Démarrer le bot Telegram
+        application.run_polling()
+
     except KeyboardInterrupt:
         logger.info("Arrêt demandé par l'utilisateur")
     except Exception as e:
@@ -1668,9 +1656,4 @@ def main():
         logger.info("Bot arrêté proprement")
 
 if __name__ == '__main__':
-    # Démarrer le serveur HTTP dans un thread séparé
-    http_thread = threading.Thread(target=start_http_server, daemon=True)
-    http_thread.start()
-    
-    # Lancer la fonction principale du bot
     main()
