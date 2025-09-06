@@ -10,23 +10,34 @@ import logging
 import requests
 import asyncio
 import threading
+import time
 from datetime import datetime
 from typing import Dict, List, Set
 from http.server import HTTPServer, BaseHTTPRequestHandler
 from string import Template
 
 import pytz
-from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
+from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup, Bot
 from telegram.ext import Application, CommandHandler, CallbackQueryHandler, ContextTypes
 from apscheduler.schedulers.background import BackgroundScheduler
 from apscheduler.triggers.cron import CronTrigger
 
-# Configuration du logging
+# Configuration du logging améliorée
 logging.basicConfig(
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
-    level=logging.INFO
+    format='%(asctime)s - %(name)s - %(levelname)s - %(funcName)s:%(lineno)d - %(message)s',
+    level=logging.INFO,
+    handlers=[
+        logging.StreamHandler(),
+        # Optionnel: logging vers fichier en production
+        # logging.FileHandler('steam_bot.log', encoding='utf-8')
+    ]
 )
 logger = logging.getLogger(__name__)
+
+# Réduire le niveau de logging pour les bibliothèques externes
+logging.getLogger('httpx').setLevel(logging.WARNING)
+logging.getLogger('telegram').setLevel(logging.WARNING)
+logging.getLogger('apscheduler').setLevel(logging.WARNING)
 
 # Configuration
 TELEGRAM_TOKEN = os.getenv('TELEGRAM_TOKEN')
@@ -36,7 +47,10 @@ if not TELEGRAM_TOKEN:
     logger.error("🤖 Get your token from @BotFather on Telegram")
     exit(1)
     
-STEAM_API_URL = "https://store.steampowered.com/api/featured/"
+STEAM_API_URLS = [
+    "https://store.steampowered.com/api/featured/",
+    "https://steamapi.xpaw.me/v1/steam/prices/USD.min.json"
+]
 SENT_GAMES_FILE = "sent_games.json"
 TIMEZONE = pytz.timezone('Europe/Paris')
 
@@ -75,7 +89,17 @@ class HealthCheckHandler(BaseHTTPRequestHandler):
         elif self.path.startswith('/subscribe/'):
             # Endpoint d'inscription: /subscribe/CHAT_ID
             try:
-                chat_id = int(self.path.split('/')[-1])
+                chat_id_str = self.path.split('/')[-1]
+                
+                # Validation du chat_id
+                if not chat_id_str.isdigit():
+                    raise ValueError("Chat ID doit être un nombre")
+                
+                chat_id = int(chat_id_str)
+                
+                # Validation des limites Telegram (chat_id doit être positif et dans une plage raisonnable)
+                if chat_id <= 0 or chat_id > 9999999999:  # Limite Telegram approximative
+                    raise ValueError("Chat ID invalide")
                 
                 # Ajouter le chat_id à la liste
                 if 'steam_bot' in globals():
@@ -85,16 +109,39 @@ class HealthCheckHandler(BaseHTTPRequestHandler):
                 self.send_header('Content-type', CONTENT_TYPE_HTML)
                 self.end_headers()
                 
-                html = render_template('success.html', chat_id=chat_id, total_users=len(steam_bot.chat_ids) if 'steam_bot' in globals() else 0)
+                total_users = len(steam_bot.chat_ids) if 'steam_bot' in globals() else 0
+                html = render_template('success.html', chat_id=chat_id, total_users=total_users)
                 self.wfile.write(html.encode())
                 
-                logger.info(f"✅ Nouvel utilisateur inscrit: {chat_id}")
+                logger.info(f"✅ Nouvel utilisateur inscrit: {chat_id} (Total: {total_users})")
                 
-            except (ValueError, IndexError):
+            except ValueError as e:
                 self.send_response(400)
                 self.send_header('Content-type', CONTENT_TYPE_HTML)
                 self.end_headers()
-                self.wfile.write(b"<h1>Erreur: Chat ID invalide</h1><p><a href='/'>Retour</a></p>")
+                error_html = f"""
+                <html><head><title>Erreur d'inscription</title></head><body>
+                <h1>❌ Erreur: {str(e)}</h1>
+                <p>Veuillez vérifier votre Chat ID.</p>
+                <p><a href='/'>← Retour à l'accueil</a></p>
+                </body></html>
+                """
+                self.wfile.write(error_html.encode())
+                logger.warning(f"⚠️ Tentative d'inscription avec Chat ID invalide: {self.path}")
+                
+            except Exception as e:
+                self.send_response(500)
+                self.send_header('Content-type', CONTENT_TYPE_HTML)
+                self.end_headers()
+                error_html = f"""
+                <html><head><title>Erreur serveur</title></head><body>
+                <h1>❌ Erreur serveur interne</h1>
+                <p>Une erreur s'est produite lors de l'inscription.</p>
+                <p><a href='/'>← Retour à l'accueil</a></p>
+                </body></html>
+                """
+                self.wfile.write(error_html.encode())
+                logger.error(f"Erreur serveur lors de l'inscription: {e}")
         
         else:
             self.send_response(200)
@@ -124,30 +171,92 @@ class SteamSalesBot:
     def __init__(self):
         self.sent_games: Dict = self.load_sent_games()
         self.chat_ids: Set[int] = set(self.sent_games.get('chat_ids', []))
+        self._last_telegram_call = 0
+        self._telegram_call_interval = 1.0  # Minimum 1 seconde entre les appels Telegram
         
     def load_sent_games(self) -> Dict:
-        """Charge les jeux déjà envoyés depuis le fichier JSON"""
+        """Charge les jeux déjà envoyés depuis le fichier JSON avec gestion d'erreurs robuste"""
+        default_data = {"sent_games": {}, "chat_ids": []}
+        
+        if not os.path.exists(SENT_GAMES_FILE):
+            logger.info(f"Fichier {SENT_GAMES_FILE} non trouvé, création avec données par défaut")
+            self.save_sent_games_with_data(default_data)
+            return default_data
+            
         try:
-            if os.path.exists(SENT_GAMES_FILE):
-                with open(SENT_GAMES_FILE, 'r', encoding='utf-8') as f:
-                    return json.load(f)
-            else:
-                return {"sent_games": {}, "chat_ids": []}
+            with open(SENT_GAMES_FILE, 'r', encoding='utf-8') as f:
+                data = json.load(f)
+                
+            # Validation de la structure des données
+            if not isinstance(data, dict):
+                raise ValueError("Le fichier JSON doit contenir un objet")
+                
+            if 'sent_games' not in data or not isinstance(data['sent_games'], dict):
+                logger.warning("Clé 'sent_games' manquante ou invalide, réinitialisation")
+                data['sent_games'] = {}
+                
+            if 'chat_ids' not in data or not isinstance(data['chat_ids'], list):
+                logger.warning("Clé 'chat_ids' manquante ou invalide, réinitialisation")
+                data['chat_ids'] = []
+            
+            # Nettoyer les chat_ids invalides
+            valid_chat_ids = []
+            for chat_id in data['chat_ids']:
+                if isinstance(chat_id, int) and chat_id > 0:
+                    valid_chat_ids.append(chat_id)
+                else:
+                    logger.warning(f"Chat ID invalide supprimé: {chat_id}")
+            
+            data['chat_ids'] = valid_chat_ids
+            logger.info(f"Chargé {len(data['sent_games'])} jeux et {len(valid_chat_ids)} utilisateurs")
+            return data
+            
+        except (json.JSONDecodeError, ValueError) as e:
+            logger.error(f"Fichier {SENT_GAMES_FILE} corrompu: {e}")
+            # Créer une sauvegarde du fichier corrompu
+            backup_file = f"{SENT_GAMES_FILE}.backup.{int(datetime.now().timestamp())}"
+            try:
+                os.rename(SENT_GAMES_FILE, backup_file)
+                logger.info(f"Fichier corrompu sauvegardé vers {backup_file}")
+            except Exception:
+                pass
+            
+            # Retourner les données par défaut
+            self.save_sent_games_with_data(default_data)
+            return default_data
+            
         except Exception as e:
-            logger.error(f"Erreur lors du chargement de {SENT_GAMES_FILE}: {e}")
-            return {"sent_games": {}, "chat_ids": []}
+            logger.error(f"Erreur inattendue lors du chargement de {SENT_GAMES_FILE}: {e}")
+            return default_data
     
     def save_sent_games(self):
         """Sauvegarde les jeux envoyés dans le fichier JSON"""
+        data = {
+            "sent_games": self.sent_games.get("sent_games", {}),
+            "chat_ids": list(self.chat_ids)
+        }
+        self.save_sent_games_with_data(data)
+    
+    def save_sent_games_with_data(self, data: Dict):
+        """Sauvegarde des données spécifiques dans le fichier JSON"""
         try:
-            data = {
-                "sent_games": self.sent_games.get("sent_games", {}),
-                "chat_ids": list(self.chat_ids)
-            }
-            with open(SENT_GAMES_FILE, 'w', encoding='utf-8') as f:
+            # Écrire dans un fichier temporaire d'abord
+            temp_file = f"{SENT_GAMES_FILE}.tmp"
+            with open(temp_file, 'w', encoding='utf-8') as f:
                 json.dump(data, f, indent=2, ensure_ascii=False)
+            
+            # Remplacer atomiquement le fichier original
+            os.replace(temp_file, SENT_GAMES_FILE)
+            logger.debug(f"Données sauvegardées avec succès dans {SENT_GAMES_FILE}")
+            
         except Exception as e:
             logger.error(f"Erreur lors de la sauvegarde de {SENT_GAMES_FILE}: {e}")
+            # Nettoyer le fichier temporaire en cas d'erreur
+            try:
+                if os.path.exists(f"{SENT_GAMES_FILE}.tmp"):
+                    os.remove(f"{SENT_GAMES_FILE}.tmp")
+            except Exception:
+                pass
     
     def add_chat_id(self, chat_id: int):
         """Ajoute un chat_id à la liste des destinataires et envoie une notification de bienvenue"""
@@ -173,9 +282,27 @@ class SteamSalesBot:
             except Exception as e:
                 logger.warning(f"Erreur lors de l'envoi de la notification de bienvenue: {e}")
     
+    def _rate_limit_telegram_call(self):
+        """Applique un rate limiting simple pour les appels Telegram API"""
+        current_time = time.time()
+        time_since_last_call = current_time - self._last_telegram_call
+        
+        if time_since_last_call < self._telegram_call_interval:
+            sleep_time = self._telegram_call_interval - time_since_last_call
+            logger.debug(f"Rate limiting: attente de {sleep_time:.2f}s")
+            time.sleep(sleep_time)
+        
+        self._last_telegram_call = time.time()
+    
     def send_welcome_notification_sync(self, chat_id: int):
         """Envoie une notification de bienvenue via l'API HTTP Telegram (version synchrone)"""
         try:
+            if not TELEGRAM_TOKEN:
+                logger.warning("Token Telegram non configuré - notification de bienvenue ignorée")
+                return
+            
+            self._rate_limit_telegram_call()
+                
             welcome_message = f"""🎉 **Bienvenue sur Steam Sales Bot !**
 
 ✅ **Inscription confirmée !**
@@ -199,17 +326,22 @@ class SteamSalesBot:
             data = {
                 'chat_id': chat_id,
                 'text': welcome_message,
-                'parse_mode': 'Markdown'
+                'parse_mode': 'Markdown',
+                'disable_web_page_preview': True
             }
             
             response = requests.post(url, data=data, timeout=10)
+            
             if response.status_code == 200:
                 logger.info(f"✅ Notification de bienvenue envoyée à {chat_id}")
             else:
-                logger.warning(f"⚠️ Erreur envoi notification bienvenue (HTTP {response.status_code})")
+                error_data = response.json() if response.headers.get('content-type', '').startswith('application/json') else response.text
+                logger.warning(f"⚠️ Erreur envoi notification bienvenue (HTTP {response.status_code}): {error_data}")
                 
+        except requests.exceptions.RequestException as e:
+            logger.error(f"Erreur réseau lors de l'envoi de la notification de bienvenue: {e}")
         except Exception as e:
-            logger.error(f"Erreur lors de l'envoi de la notification de bienvenue: {e}")
+            logger.error(f"Erreur inattendue lors de l'envoi de la notification de bienvenue: {e}")
     
     async def send_welcome_notification(self, chat_id: int):
         """Envoie une notification de bienvenue à un nouvel utilisateur"""
@@ -259,58 +391,145 @@ _Vous pouvez utiliser /check à tout moment pour vérifier manuellement._"""
     
     def get_free_games(self) -> List[Dict]:
         """Récupère uniquement les jeux en vraie promotion -100% (pas les F2P de base)"""
-        try:
-            response = requests.get(STEAM_API_URL, timeout=30)
-            response.raise_for_status()
-            data = response.json()
-            
-            free_games = []
-            
-            # Ne vérifier que la section "specials" qui contient les vraies promotions
-            if 'specials' in data and 'items' in data['specials']:
-                for item in data['specials']['items']:
-                    discount_percent = item.get('discount_percent', 0)
-                    final_price = item.get('final_price', 0)
-                    original_price = item.get('original_price', 0)
+        for api_url in STEAM_API_URLS:
+            try:
+                logger.info(f"Tentative de récupération via {api_url}")
+                response = requests.get(api_url, timeout=30, 
+                                      headers={'User-Agent': 'Steam Sales Bot/1.0'})
+                response.raise_for_status()
+                
+                if api_url == STEAM_API_URLS[0]:  # Featured API
+                    return self._parse_featured_api(response.json())
+                else:  # xpaw API
+                    return self._parse_xpaw_api(response.json())
                     
-                    # Conditions strictes pour une vraie promotion gratuite
-                    if (discount_percent == 100 and 
-                        final_price == 0 and 
-                        original_price > 100):  # Plus de $1
-                        
-                        app_id = str(item.get('id', ''))
-                        name = item.get('name', f'Jeu {app_id}')
-                        original_price_dollars = original_price / 100
-                        
-                        if app_id and not self.is_game_already_sent(app_id):
-                            if self._verify_real_promotion(app_id, name):
-                                free_games.append({
-                                    'app_id': app_id,
-                                    'name': name,
-                                    'url': f'https://store.steampowered.com/app/{app_id}/',
-                                    'initial_price': original_price_dollars
-                                })
+            except requests.exceptions.RequestException as e:
+                logger.warning(f"Erreur API {api_url}: {e}")
+                continue
+            except Exception as e:
+                logger.error(f"Erreur inattendue avec {api_url}: {e}")
+                continue
+        
+        logger.error("Toutes les API Steam ont échoué")
+        return []
+    
+    def _parse_featured_api(self, data: Dict) -> List[Dict]:
+        """Parse les données de l'API featured Steam"""
+        free_games = []
+        
+        # Ne vérifier que la section "specials" qui contient les vraies promotions
+        if 'specials' in data and 'items' in data['specials']:
+            for item in data['specials']['items']:
+                discount_percent = item.get('discount_percent', 0)
+                final_price = item.get('final_price', 0)
+                original_price = item.get('original_price', 0)
+                
+                # Conditions strictes pour une vraie promotion gratuite
+                if (discount_percent == 100 and 
+                    final_price == 0 and 
+                    original_price > 100):  # Plus de $1
+                    
+                    app_id = str(item.get('id', ''))
+                    name = item.get('name', f'Jeu {app_id}')
+                    original_price_dollars = original_price / 100
+                    
+                    if app_id and not self.is_game_already_sent(app_id):
+                        if self._verify_real_promotion(app_id, name):
+                            free_games.append({
+                                'app_id': app_id,
+                                'name': name,
+                                'url': f'https://store.steampowered.com/app/{app_id}/',
+                                'initial_price': original_price_dollars
+                            })
+        
+        logger.info(f"Trouvé {len(free_games)} vraies promotions gratuites (API featured)")
+        return free_games
+    
+    def _parse_xpaw_api(self, data: Dict) -> List[Dict]:
+        """Parse les données de l'API xpaw Steam"""
+        free_games = []
+        
+        # L'API xpaw retourne un dict avec app_id comme clés
+        for app_id, item_data in data.items():
+            if not isinstance(item_data, dict):
+                continue
+                
+            price_data = item_data.get('data', {})
+            if not price_data:
+                continue
+                
+            # Vérifier s'il y a une promotion -100%
+            discount = price_data.get('discount_percent', 0)
+            final_price = price_data.get('final_price', 0)
+            initial_price = price_data.get('initial_price', 0)
             
-            logger.info(f"Trouvé {len(free_games)} vraies promotions gratuites (hors F2P)")
-            return free_games
-            
-        except Exception as e:
-            logger.error(f"Erreur lors de la récupération des jeux en promotion: {e}")
-            return []
+            if (discount == 100 and 
+                final_price == 0 and 
+                initial_price > 100):  # Plus de $1 initialement
+                
+                name = item_data.get('name', f'Jeu {app_id}')
+                initial_price_dollars = initial_price / 100
+                
+                if not self.is_game_already_sent(app_id):
+                    if self._verify_real_promotion(app_id, name):
+                        free_games.append({
+                            'app_id': app_id,
+                            'name': name,
+                            'url': f'https://store.steampowered.com/app/{app_id}/',
+                            'initial_price': initial_price_dollars
+                        })
+        
+        logger.info(f"Trouvé {len(free_games)} vraies promotions gratuites (API xpaw)")
+        return free_games
     
     def _verify_real_promotion(self, app_id: str, game_name: str) -> bool:
         """Vérifie qu'il s'agit vraiment d'une promotion et pas d'un F2P"""
-        # Liste des jeux F2P connus à exclure
+        # Liste étendue des jeux F2P connus à exclure
         known_f2p_games = {
-            '730', '440', '570', '238960', '386360', '444090', 
-            '578080', '1222670', '359550', '252490'
+            # Jeux populaires F2P
+            '730',     # Counter-Strike 2
+            '440',     # Team Fortress 2  
+            '570',     # Dota 2
+            '238960',  # Path of Exile
+            '386360',  # SMITE
+            '444090',  # Paladins
+            '578080',  # PUBG (devenu F2P)
+            '1222670', # Apex Legends
+            '359550',  # Tom Clancy's Rainbow Six Siege (Starter Edition)
+            '252490',  # Rust (version F2P)
+            '813780',  # Age of Empires II: Definitive Edition (F2P weekends)
+            '271590',  # Grand Theft Auto V (F2P Epic periods)
+            '431960',  # Wallpaper Engine (souvent en promotion)
+            '105600',  # Terraria (souvent en promotion mais pas F2P permanent)
+            # MMO F2P
+            '8500',    # EVE Online
+            '1085660', # Destiny 2
+            '582010',  # Monster Hunter: World (F2P weekends)
+            '945360',  # Among Us (souvent en promotion)
+            '1174180', # Red Dead Redemption 2 (F2P weekends sur Epic)
         }
         
+        # Exclure les jeux F2P connus
         if app_id in known_f2p_games:
             logger.info(f"Jeu F2P exclu: {game_name} (ID: {app_id})")
             return False
         
-        return True  # Simplification pour éviter trop de complexité
+        # Patterns de noms à exclure (souvent des F2P ou démos)
+        exclude_patterns = [
+            'free to play', 'f2p', 'demo', 'beta', 'prologue', 
+            'playtest', 'benchmark', 'trailer', 'soundtrack',
+            'wallpaper', 'theme', 'avatar', 'early access demo'
+        ]
+        
+        game_name_lower = game_name.lower()
+        for pattern in exclude_patterns:
+            if pattern in game_name_lower:
+                logger.info(f"Jeu exclu par pattern '{pattern}': {game_name}")
+                return False
+        
+        # Accepter le jeu comme vraie promotion
+        logger.debug(f"Jeu validé comme vraie promotion: {game_name} (ID: {app_id})")
+        return True
     
     def is_game_already_sent(self, app_id: str) -> bool:
         """Vérifie si un jeu a déjà été envoyé"""
@@ -549,7 +768,6 @@ def main():
         async def test_telegram_token():
             """Test rapide du token Telegram"""
             try:
-                from telegram import Bot
                 bot = Bot(token=TELEGRAM_TOKEN)
                 bot_info = await bot.get_me()
                 await bot.close()  # Fermer proprement la connexion
