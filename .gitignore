@@ -155,6 +155,7 @@ test_*.py
 
 # Fichiers de données sensibles
 sent_games.json
+sent_games.json.backup.*
 
 # Environment virtuel
 .venv/
